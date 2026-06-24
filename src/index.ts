@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { db } from './db';
+import { renderUI } from './ui';
 import { Env, Book } from './types';
 import { dispatchNotifications } from './notifications';
 
@@ -18,8 +19,12 @@ const getEnv = (): Env => ({
   WEBHOOK_DEFAULT_URL: process.env.WEBHOOK_DEFAULT_URL,
 });
 
-// Security Middleware: Validate API Key
+// Security Middleware: Validate API Key (except root page UI)
 app.use('*', async (c, next) => {
+  if (c.req.path === '/' || c.req.path === '/index.html') {
+    return await next();
+  }
+
   const env = getEnv();
   const apiKey = env.API_KEY;
   if (!apiKey) {
@@ -32,6 +37,12 @@ app.use('*', async (c, next) => {
   }
   
   await next();
+});
+
+// Serve Web UI Dashboard
+app.get('/', (c) => {
+  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8787;
+  return c.html(renderUI(port));
 });
 
 // REST API: Get all tracked books
