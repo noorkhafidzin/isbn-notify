@@ -1,9 +1,10 @@
 export interface Env {
-  DB: D1Database;
   API_KEY: string;
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_DEFAULT_CHAT_ID?: string;
   NTFY_DEFAULT_TOPIC?: string;
+  NTFY_DEFAULT_URL?: string;
+  NTFY_AUTH_TOKEN?: string;
   WEBHOOK_DEFAULT_URL?: string;
 }
 

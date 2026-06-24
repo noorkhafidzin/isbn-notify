@@ -1,12 +1,27 @@
+import 'dotenv/config';
 import { Hono } from 'hono';
+import { serve } from '@hono/node-server';
+import { db } from './db';
 import { Env, Book } from './types';
 import { dispatchNotifications } from './notifications';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono();
+
+// Helper to get environment variables
+const getEnv = (): Env => ({
+  API_KEY: process.env.API_KEY || '',
+  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
+  TELEGRAM_DEFAULT_CHAT_ID: process.env.TELEGRAM_DEFAULT_CHAT_ID,
+  NTFY_DEFAULT_TOPIC: process.env.NTFY_DEFAULT_TOPIC,
+  NTFY_DEFAULT_URL: process.env.NTFY_DEFAULT_URL,
+  NTFY_AUTH_TOKEN: process.env.NTFY_AUTH_TOKEN,
+  WEBHOOK_DEFAULT_URL: process.env.WEBHOOK_DEFAULT_URL,
+});
 
 // Security Middleware: Validate API Key
 app.use('*', async (c, next) => {
-  const apiKey = c.env.API_KEY;
+  const env = getEnv();
+  const apiKey = env.API_KEY;
   if (!apiKey) {
     return c.json({ error: 'API Key is not configured on the server (API_KEY env is missing).' }, 500);
   }
@@ -20,13 +35,10 @@ app.use('*', async (c, next) => {
 });
 
 // REST API: Get all tracked books
-app.get('/books', async (c) => {
+app.get('/books', (c) => {
   try {
-    const { results } = await c.env.DB.prepare(
-      `SELECT * FROM books ORDER BY created_at DESC`
-    ).all<Book>();
-    
-    return c.json({ success: true, books: results });
+    const books = db.getBooks();
+    return c.json({ success: true, books });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }
@@ -49,27 +61,19 @@ app.post('/books', async (c) => {
     const cleanNtfyTopic = ntfy_topic ? String(ntfy_topic).trim() : null;
     const cleanWebhookUrl = webhook_url ? String(webhook_url).trim() : null;
 
-    const result = await c.env.DB.prepare(
-      `INSERT INTO books (title, author, publisher, tg_chat_id, ntfy_topic, webhook_url) VALUES (?, ?, ?, ?, ?, ?)`
-    ).bind(
-      cleanTitle,
-      cleanAuthor,
-      cleanPublisher,
-      cleanTgChatId,
-      cleanNtfyTopic,
-      cleanWebhookUrl
-    ).run();
+    const newBook = db.addBook({
+      title: cleanTitle,
+      author: cleanAuthor,
+      publisher: cleanPublisher,
+      tg_chat_id: cleanTgChatId,
+      ntfy_topic: cleanNtfyTopic,
+      webhook_url: cleanWebhookUrl
+    });
 
     return c.json({ 
       success: true, 
       message: 'Book registered for ISBN tracking successfully.',
-      book: {
-        id: result.meta.last_row_id,
-        title: cleanTitle,
-        author: cleanAuthor,
-        publisher: cleanPublisher,
-        status: 'PENDING'
-      }
+      book: newBook
     }, 201);
 
   } catch (error: any) {
@@ -78,14 +82,16 @@ app.post('/books', async (c) => {
 });
 
 // REST API: Delete book from tracking
-app.delete('/books/:id', async (c) => {
+app.delete('/books/:id', (c) => {
   try {
-    const id = c.req.param('id');
-    const result = await c.env.DB.prepare(
-      `DELETE FROM books WHERE id = ?`
-    ).bind(id).run();
+    const id = parseInt(c.req.param('id'), 10);
+    if (isNaN(id)) {
+      return c.json({ success: false, error: 'Invalid ID format.' }, 400);
+    }
     
-    if (result.meta.changes === 0) {
+    const success = db.deleteBook(id);
+    
+    if (!success) {
       return c.json({ success: false, error: `Book with id ${id} not found.` }, 404);
     }
     
@@ -98,7 +104,8 @@ app.delete('/books/:id', async (c) => {
 // REST API: Manually trigger tracking check
 app.post('/check', async (c) => {
   try {
-    const trackingResults = await checkIsbns(c.env);
+    const env = getEnv();
+    const trackingResults = await checkIsbns(env);
     return c.json({ success: true, ...trackingResults });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
@@ -109,9 +116,7 @@ app.post('/check', async (c) => {
  * Checks all PENDING books against Perpusnas search API
  */
 export async function checkIsbns(env: Env): Promise<{ checked: number; found: number; details: any[] }> {
-  const { results: pendingBooks } = await env.DB.prepare(
-    `SELECT * FROM books WHERE status = 'PENDING'`
-  ).all<Book>();
+  const pendingBooks = db.getBooks().filter(book => book.status === 'PENDING');
 
   let checked = 0;
   let found = 0;
@@ -181,9 +186,11 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
       if (hasFoundIsbn) {
         found++;
         // Update database: status COMPLETED and store ISBN
-        await env.DB.prepare(
-          `UPDATE books SET status = 'COMPLETED', isbn = ?, updated_at = CURRENT_TIMESTAMP, last_checked_at = CURRENT_TIMESTAMP WHERE id = ?`
-        ).bind(foundIsbnStr, book.id).run();
+        db.updateBook(book.id, {
+          status: 'COMPLETED',
+          isbn: foundIsbnStr,
+          last_checked_at: new Date().toISOString()
+        });
 
         console.log(`Success: ISBN found for "${book.title}" -> ${foundIsbnStr}. Dispatching notifications...`);
         
@@ -193,9 +200,9 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
         details.push({ id: book.id, title: book.title, status: 'FOUND', isbn: foundIsbnStr });
       } else {
         // Update last checked timestamp only
-        await env.DB.prepare(
-          `UPDATE books SET last_checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-        ).bind(book.id).run();
+        db.updateBook(book.id, {
+          last_checked_at: new Date().toISOString()
+        });
         
         details.push({ id: book.id, title: book.title, status: 'PENDING' });
       }
@@ -210,13 +217,11 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
   return { checked, found, details };
 }
 
-// Export default Worker bindings
-export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    return app.fetch(request, env, ctx);
-  },
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    console.log(`Scheduled Cron Trigger running at ${new Date().toISOString()}`);
-    ctx.waitUntil(checkIsbns(env));
-  }
-};
+// Start Node server
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8787;
+console.log(`Server is starting on port ${port}...`);
+
+serve({
+  fetch: app.fetch,
+  port
+});

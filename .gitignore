@@ -1,9 +1,11 @@
 # Dependencies
 node_modules/
 
-# Wrangler local state & dev environment
-.wrangler/
+# Environment variables and configurations
+.env
 .dev.vars
+wrangler.toml
+.wrangler/
 
 # Build output (if compiled explicitly)
 dist/
@@ -17,3 +19,15 @@ pnpm-debug.log*
 # System files
 .DS_Store
 Thumbs.db
+
+# Docker files
+docker-compose.yml
+data/
+
+# Local Database
+books.json
+books.json.tmp
+
+# Local testing scripts
+test.js
+test_success.js

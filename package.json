@@ -1,18 +1,22 @@
 {
   "name": "isbn-notify",
   "version": "1.0.0",
-  "description": "Serverless ISBN publisher tracking and notification system",
-  "main": "src/index.ts",
+  "description": "Self-hosted ISBN tracking and notification system",
+  "main": "dist/index.js",
+  "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
   },
   "dependencies": {
+    "@hono/node-server": "^1.11.2",
+    "dotenv": "^16.4.5",
     "hono": "^4.4.7"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20240605.0",
-    "typescript": "^5.4.5",
-    "wrangler": "^3.60.3"
+    "@types/node": "^20.14.2",
+    "tsx": "^4.15.6",
+    "typescript": "^5.4.5"
   }
 }

@@ -1,44 +1,46 @@
 # Blueprint — isbn-notify
 
-- **Version:** v1.0.0
+- **Version:** v1.2.0
 - **Last Updated:** 2026-06-24
-- **Tech Stack:** Cloudflare Workers, Hono, Cloudflare D1 (SQLite), TypeScript
+- **Tech Stack:** Node.js, Hono, JSON Database (books.json), TypeScript
 
 ---
 
 ## 1. System Overview
 
-Sistem backend serverless yang berjalan di atas **Cloudflare Workers Edge Runtime** untuk memonitor ketersediaan/penerbitan nomor ISBN dari portal Perpustakaan Nasional (Perpusnas) RI secara otomatis berdasarkan judul buku dan nama penerbit, kemudian mendistribusikan notifikasi secara dinamis ke Telegram, ntfy.sh, atau Webhook target.
+Sistem backend mandiri (self-hosted) yang berjalan di atas runtime **Node.js** menggunakan **Hono** untuk memonitor ketersediaan/penerbitan nomor ISBN dari portal Perpustakaan Nasional (Perpusnas) RI secara otomatis berdasarkan judul buku dan nama penerbit, kemudian mendistribusikan notifikasi secara dinamis ke Telegram, ntfy.sh, atau Webhook target.
+
+Sistem ini di-host pada jaringan residential (home server) untuk menghindari blokir WAF `403 Forbidden` yang diterapkan Perpusnas pada jangkauan IP pusat data Cloudflare.
 
 ---
 
-## 2. Database Architecture (D1 SQLite)
+## 2. JSON Database Architecture (books.json)
 
-Tabel utama `books` menyimpan informasi buku yang didaftarkan serta preferensi notifikasi spesifik:
+Database disimpan secara lokal dalam file database JSON (default: `books.json` di root direktori). Lokasi file dapat disesuaikan menggunakan variabel lingkungan `DB_PATH` (misalnya `/app/data/books.json` pada mode Docker). Penulisan database dilakukan secara aman dan atomik menggunakan skema temp-write and rename:
 
-```sql
-CREATE TABLE books (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    author TEXT,
-    publisher TEXT,
-    status TEXT NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'COMPLETED'
-    isbn TEXT,
-    tg_chat_id TEXT,
-    ntfy_topic TEXT,
-    webhook_url TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_checked_at DATETIME
-);
+```ts
+export interface Book {
+  id: number;
+  title: string;
+  author: string | null;
+  publisher: string | null;
+  status: 'PENDING' | 'COMPLETED';
+  isbn: string | null;
+  tg_chat_id: string | null;
+  ntfy_topic: string | null;
+  webhook_url: string | null;
+  created_at: string;
+  updated_at: string;
+  last_checked_at: string | null;
+}
 ```
 
 ### Flow Status Pelacakan:
-1. Pengguna memasukkan judul buku (dan opsional penerbit/author) via POST request. Data disimpan dengan status `PENDING`.
-2. Cron Job melacak setiap buku berstatus `PENDING` dengan menembak API Perpusnas:
-   `https://isbn.perpusnas.go.id/landing_page/serverside_search2?search={title}&filter_by={filter}`
+1. Pengguna memasukkan judul buku (dan opsional penerbit/author/notifikasi khusus) via `POST /books`. Data ditambahkan ke array dengan status `PENDING`.
+2. Cron Job lokal melacak setiap buku berstatus `PENDING` dengan menembak API Perpusnas:
+   `https://isbn.perpusnas.go.id/landing_page/serverside_search2?search={title}&filter_by=title`
 3. Bila judul dan penerbit/author cocok, nomor ISBN diekstrak.
-4. Status diperbarui ke `COMPLETED`, field `isbn` diisi, dan notifikasi dikirim ke channel yang ditentukan. Buku dengan status `COMPLETED` tidak akan diproses di putaran cron berikutnya.
+4. Status diperbarui ke `COMPLETED`, field `isbn` diisi, dan notifikasi dikirim ke channel yang ditentukan. Buku dengan status `COMPLETED` tidak diproses kembali pada putaran cron berikutnya.
 
 ---
 
@@ -47,7 +49,7 @@ CREATE TABLE books (
 Semua endpoint dilindungi menggunakan header `X-API-Key`.
 
 - **`GET /books`**
-  Mengambil seluruh data buku yang ada di database.
+  Mengambil seluruh data buku yang terdaftar di database.
 - **`POST /books`**
   Menambahkan buku baru ke antrean tracking.
   - Body payload:
@@ -62,7 +64,7 @@ Semua endpoint dilindungi menggunakan header `X-API-Key`.
     }
     ```
 - **`DELETE /books/:id`**
-  Menghapus buku berdasarkan ID dari database.
+  Menghapus buku berdasarkan ID numerik dari database.
 - **`POST /check`**
   Memicu proses pelacakan manual secara instan di latar belakang.
 
@@ -72,8 +74,9 @@ Semua endpoint dilindungi menggunakan header `X-API-Key`.
 
 - **Telegram:**
   POST ke `https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/sendMessage` dengan body payload JSON `{ chat_id, text, parse_mode: "HTML" }`.
-- **ntfy.sh:**
-  POST ke `https://ntfy.sh/<TOPIC>` dengan message body teks dan header ASCII (`Title`, `Priority`, `Tags`).
+- **ntfy.sh / Self-Hosted ntfy:**
+  POST ke `<NTFY_DEFAULT_URL>/<TOPIC>` dengan message body teks dan header ASCII (`Title`, `Priority`, `Tags`).
+  Mendukung autentikasi via variabel lingkungan `NTFY_AUTH_TOKEN` (bisa diisi raw `username:password` yang akan otomatis dienkode ke `Authorization: Basic base64(username:password)` atau token langsung).
 - **Webhook:**
   POST JSON payload ke target URL dengan format:
   ```json
@@ -93,6 +96,11 @@ Semua endpoint dilindungi menggunakan header `X-API-Key`.
 
 ---
 
-## 5. Scheduled Cron Job
+## 5. Linux Crontab Scheduler
 
-Workers scheduled event dikonfigurasi melalui `wrangler.toml` dengan jadwal `0 2,6,10 * * 1-5` UTC yang setara dengan **09:00, 13:00, dan 17:00 WIB** pada hari kerja (Senin - Jumat) untuk mencocokkan waktu operasional backend Perpusnas RI.
+Penjadwalan pengecekan otomatis didelegasikan ke utilitas **Cron bawaan Linux** pada home server.
+Jadwal rekomendasi diatur 3 kali sehari pada hari kerja: pukul **09:00, 13:00, dan 17:00 WIB** (Senin - Jumat) menyesuaikan jam kerja layanan Perpusnas RI.
+
+```cron
+0 9,13,17 * * 1-5 curl -X POST http://localhost:8787/check -H "X-API-Key: <api_key_anda>" > /dev/null 2>&1
+```

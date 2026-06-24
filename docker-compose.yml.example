@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  isbn-notify:
+    # Build locally or pull the published image from GitHub Container Registry (GHCR)
+    # image: ghcr.io/<username>/isbn-notify:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: isbn-notify
+    ports:
+      - "8787:8787"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - API_KEY=isbn-ntfy-keysec-678
+      - PORT=8787
+      
+      # Optional Notification Settings
+      - NTFY_DEFAULT_TOPIC=isbn
+      - NTFY_DEFAULT_URL=https://ntfy.sh
+      # - NTFY_AUTH_TOKEN=username:password
+      # - TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+      # - TELEGRAM_DEFAULT_CHAT_ID=your_telegram_chat_id
+    restart: unless-stopped

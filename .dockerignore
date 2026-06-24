@@ -1,0 +1,9 @@
+node_modules/
+dist/
+books.json
+books.json.tmp
+.env
+.git/
+test.js
+test_success.js
+npm-debug.log*

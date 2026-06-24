@@ -52,19 +52,34 @@ export async function sendNtfyNotification(
   topic: string,
   book: Book,
   officialTitle: string,
-  isbn: string
+  isbn: string,
+  authToken?: string,
+  baseUrl?: string
 ): Promise<boolean> {
-  const url = `https://ntfy.sh/${topic}`;
+  const base = (baseUrl || 'https://ntfy.sh').replace(/\/$/, '');
+  const url = `${base}/${topic}`;
   const message = `Buku "${book.title}" (Resmi: "${officialTitle}") telah mendapatkan nomor ISBN: ${isbn}.`;
 
   try {
+    const headers: Record<string, string> = {
+      'Title': 'ISBN Telah Terbit!',
+      'Priority': 'high',
+      'Tags': 'book,tada,bell',
+    };
+
+    if (authToken) {
+      if (authToken.startsWith('Basic ') || authToken.startsWith('Bearer ')) {
+        headers['Authorization'] = authToken;
+      } else if (authToken.includes(':')) {
+        headers['Authorization'] = `Basic ${btoa(authToken)}`;
+      } else {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+    }
+
     const res = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Title': 'ISBN Telah Terbit!',
-        'Priority': 'high',
-        'Tags': 'book,tada,bell',
-      },
+      headers,
       body: message,
     });
 
@@ -147,7 +162,14 @@ export async function dispatchNotifications(
   // 2. ntfy.sh
   const ntfyTopic = book.ntfy_topic || env.NTFY_DEFAULT_TOPIC;
   if (ntfyTopic) {
-    results.ntfy = await sendNtfyNotification(ntfyTopic, book, officialTitle, isbn);
+    results.ntfy = await sendNtfyNotification(
+      ntfyTopic,
+      book,
+      officialTitle,
+      isbn,
+      env.NTFY_AUTH_TOKEN,
+      env.NTFY_DEFAULT_URL
+    );
   }
 
   // 3. Webhook
