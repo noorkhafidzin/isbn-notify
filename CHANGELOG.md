@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Penambahan GitHub Actions workflow (`docker-publish.yml`) untuk membangun (build) image secara otomatis pada multi-platform (amd64 dan arm64) serta mempublikasikannya ke GitHub Container Registry (GHCR).
 - Dukungan variabel lingkungan `DB_PATH` untuk mengatur letak penyimpanan database.
 
+### Removed
+- Penghapusan file `schema.sql` karena sistem beralih menggunakan JSON database.
+
 ## [1.1.0] - 2026-06-24
 
 ### Changed
