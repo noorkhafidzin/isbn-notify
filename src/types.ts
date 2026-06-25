@@ -21,6 +21,8 @@ export interface Book {
   created_at: string;
   updated_at: string;
   last_checked_at: string | null;
+  submission_date?: string | null;
+  isbn_published_date?: string | null;
 }
 
 export interface PerpusnasBook {

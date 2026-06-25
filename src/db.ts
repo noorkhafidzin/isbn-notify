@@ -44,7 +44,12 @@ function writeDb(books: Book[]): void {
 
 export const db = {
   getBooks(): Book[] {
-    return readDb();
+    const books = readDb();
+    return books.map(book => ({
+      ...book,
+      submission_date: book.submission_date || book.created_at.split('T')[0] || null,
+      isbn_published_date: book.isbn_published_date || null,
+    }));
   },
 
   addBook(data: {
@@ -54,6 +59,7 @@ export const db = {
     tg_chat_id: string | null;
     ntfy_topic: string | null;
     webhook_url: string | null;
+    submission_date?: string | null;
   }): Book {
     const books = readDb();
     
@@ -62,6 +68,8 @@ export const db = {
     const newId = maxId + 1;
     
     const now = new Date().toISOString();
+    const localDateString = now.split('T')[0];
+
     const newBook: Book = {
       id: newId,
       title: data.title,
@@ -75,6 +83,8 @@ export const db = {
       created_at: now,
       updated_at: now,
       last_checked_at: null,
+      submission_date: data.submission_date || localDateString,
+      isbn_published_date: null,
     };
     
     books.push(newBook);

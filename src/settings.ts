@@ -8,7 +8,8 @@ export interface AppSettings {
   NTFY_DEFAULT_URL?: string;
   NTFY_AUTH_TOKEN?: string;
   WEBHOOK_DEFAULT_URL?: string;
-  SCHEDULER_INTERVAL?: 'hourly' | '3x-daily' | 'daily' | 'disabled';
+  SCHEDULER_INTERVAL?: 'custom' | 'disabled';
+  SCHEDULER_HOURS?: number[];
 }
 
 const DB_PATH = process.env.DB_PATH;
@@ -42,7 +43,8 @@ export function writeSettings(settings: AppSettings): void {
       NTFY_DEFAULT_URL: settings.NTFY_DEFAULT_URL?.trim() || undefined,
       NTFY_AUTH_TOKEN: settings.NTFY_AUTH_TOKEN?.trim() || undefined,
       WEBHOOK_DEFAULT_URL: settings.WEBHOOK_DEFAULT_URL?.trim() || undefined,
-      SCHEDULER_INTERVAL: settings.SCHEDULER_INTERVAL || '3x-daily',
+      SCHEDULER_INTERVAL: settings.SCHEDULER_INTERVAL || 'custom',
+      SCHEDULER_HOURS: settings.SCHEDULER_HOURS || [9, 13, 17],
     };
 
     fs.writeFileSync(tempFile, JSON.stringify(cleanSettings, null, 2), 'utf-8');
@@ -62,6 +64,23 @@ export function writeSettings(settings: AppSettings): void {
 export function getMergedSettings(): Required<AppSettings> {
   const raw = getRawSettings();
 
+  // Legacy mappings for interval options
+  let interval = raw.SCHEDULER_INTERVAL || (process.env.SCHEDULER_INTERVAL as any) || 'custom';
+  let hours = raw.SCHEDULER_HOURS;
+
+  if (interval === '3x-daily' || interval === 'hourly') {
+    interval = 'custom';
+    hours = [9, 13, 17];
+  } else if (interval === 'daily') {
+    interval = 'custom';
+    hours = [9];
+  }
+
+  // Default custom hours to [9, 13, 17] if not configured
+  if (interval === 'custom' && (!hours || hours.length === 0)) {
+    hours = [9, 13, 17];
+  }
+
   return {
     TELEGRAM_BOT_TOKEN: raw.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || '',
     TELEGRAM_DEFAULT_CHAT_ID: raw.TELEGRAM_DEFAULT_CHAT_ID || process.env.TELEGRAM_DEFAULT_CHAT_ID || '',
@@ -69,6 +88,7 @@ export function getMergedSettings(): Required<AppSettings> {
     NTFY_DEFAULT_URL: raw.NTFY_DEFAULT_URL || process.env.NTFY_DEFAULT_URL || 'https://ntfy.sh',
     NTFY_AUTH_TOKEN: raw.NTFY_AUTH_TOKEN || process.env.NTFY_AUTH_TOKEN || '',
     WEBHOOK_DEFAULT_URL: raw.WEBHOOK_DEFAULT_URL || process.env.WEBHOOK_DEFAULT_URL || '',
-    SCHEDULER_INTERVAL: raw.SCHEDULER_INTERVAL || (process.env.SCHEDULER_INTERVAL as any) || '3x-daily',
+    SCHEDULER_INTERVAL: interval as any,
+    SCHEDULER_HOURS: hours || [9, 13, 17],
   };
 }

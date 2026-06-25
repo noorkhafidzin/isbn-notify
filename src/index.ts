@@ -27,7 +27,7 @@ const getEnv = (): Env => {
 // Security Middleware: Validate API Key (except root page UI and /verify route)
 app.use('*', async (c, next) => {
   const path = c.req.path;
-  if (path === '/' || path === '/index.html' || path === '/verify') {
+  if (path === '/' || path === '/ui.css' || path === '/ui.js' || path === '/index.html' || path === '/verify') {
     return await next();
   }
 
@@ -47,8 +47,20 @@ app.use('*', async (c, next) => {
 
 // Serve Web UI Dashboard
 app.get('/', (c) => {
-  const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8787;
-  return c.html(renderUI(port));
+  return c.html(renderUI());
+});
+
+// Serve static assets
+app.get('/ui.css', async (c) => {
+  const { readFileSync } = await import('fs');
+  const css = readFileSync('./src/ui.css', 'utf-8');
+  return c.text(css, 200, { 'Content-Type': 'text/css' });
+});
+
+app.get('/ui.js', async (c) => {
+  const { readFileSync } = await import('fs');
+  const js = readFileSync('./src/ui.js', 'utf-8');
+  return c.text(js, 200, { 'Content-Type': 'application/javascript' });
 });
 
 // REST API: Get all tracked books
@@ -65,7 +77,7 @@ app.get('/books', (c) => {
 app.post('/books', async (c) => {
   try {
     const body = await c.req.json();
-    const { title, author, publisher, tg_chat_id, ntfy_topic, webhook_url } = body;
+    const { title, author, publisher, tg_chat_id, ntfy_topic, webhook_url, submission_date } = body;
     
     if (!title || typeof title !== 'string' || title.trim() === '') {
       return c.json({ success: false, error: 'Title field is required and must be a string.' }, 400);
@@ -77,6 +89,7 @@ app.post('/books', async (c) => {
     const cleanTgChatId = tg_chat_id ? String(tg_chat_id).trim() : null;
     const cleanNtfyTopic = ntfy_topic ? String(ntfy_topic).trim() : null;
     const cleanWebhookUrl = webhook_url ? String(webhook_url).trim() : null;
+    const cleanSubmissionDate = submission_date ? String(submission_date).trim() : null;
 
     const newBook = db.addBook({
       title: cleanTitle,
@@ -84,7 +97,8 @@ app.post('/books', async (c) => {
       publisher: cleanPublisher,
       tg_chat_id: cleanTgChatId,
       ntfy_topic: cleanNtfyTopic,
-      webhook_url: cleanWebhookUrl
+      webhook_url: cleanWebhookUrl,
+      submission_date: cleanSubmissionDate
     });
 
     return c.json({ 
@@ -113,6 +127,48 @@ app.delete('/books/:id', (c) => {
     }
     
     return c.json({ success: true, message: 'Book deleted from tracking successfully.' });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// REST API: Update book details
+app.put('/books/:id', async (c) => {
+  try {
+    const id = parseInt(c.req.param('id'), 10);
+    if (isNaN(id)) {
+      return c.json({ success: false, error: 'Invalid ID format.' }, 400);
+    }
+    
+    const body = await c.req.json();
+    const { 
+      title, author, publisher, status, isbn, 
+      submission_date, isbn_published_date,
+      tg_chat_id, ntfy_topic, webhook_url 
+    } = body;
+    
+    if (title !== undefined && (typeof title !== 'string' || title.trim() === '')) {
+      return c.json({ success: false, error: 'Title cannot be empty.' }, 400);
+    }
+    
+    const updates: any = {};
+    if (title !== undefined) updates.title = title.trim();
+    if (author !== undefined) updates.author = author ? String(author).trim() : null;
+    if (publisher !== undefined) updates.publisher = publisher ? String(publisher).trim() : null;
+    if (status !== undefined) updates.status = status;
+    if (isbn !== undefined) updates.isbn = isbn ? String(isbn).trim() : null;
+    if (submission_date !== undefined) updates.submission_date = submission_date ? String(submission_date).trim() : null;
+    if (isbn_published_date !== undefined) updates.isbn_published_date = isbn_published_date ? String(isbn_published_date).trim() : null;
+    if (tg_chat_id !== undefined) updates.tg_chat_id = tg_chat_id ? String(tg_chat_id).trim() : null;
+    if (ntfy_topic !== undefined) updates.ntfy_topic = ntfy_topic ? String(ntfy_topic).trim() : null;
+    if (webhook_url !== undefined) updates.webhook_url = webhook_url ? String(webhook_url).trim() : null;
+    
+    const success = db.updateBook(id, updates);
+    if (!success) {
+      return c.json({ success: false, error: `Book with id ${id} not found.` }, 404);
+    }
+    
+    return c.json({ success: true, message: 'Book updated successfully.' });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }
@@ -176,15 +232,17 @@ app.post('/settings', async (c) => {
       NTFY_AUTH_TOKEN: body.NTFY_AUTH_TOKEN === '••••••••••••••••' ? existing.NTFY_AUTH_TOKEN : body.NTFY_AUTH_TOKEN,
       WEBHOOK_DEFAULT_URL: body.WEBHOOK_DEFAULT_URL,
       SCHEDULER_INTERVAL: body.SCHEDULER_INTERVAL,
+      SCHEDULER_HOURS: body.SCHEDULER_HOURS,
     };
     
     writeSettings(newSettings);
     
     // Update the background scheduler interval
-    updateScheduler(newSettings.SCHEDULER_INTERVAL || '3x-daily', async () => {
+    const merged = getMergedSettings();
+    updateScheduler(merged.SCHEDULER_INTERVAL, async () => {
       console.log('[Scheduler] Automatically checking ISBNs...');
       await checkIsbns(getEnv());
-    });
+    }, merged.SCHEDULER_HOURS);
     
     return c.json({ success: true, message: 'Settings saved and scheduler updated successfully.' });
   } catch (error: any) {
@@ -269,6 +327,7 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
         db.updateBook(book.id, {
           status: 'COMPLETED',
           isbn: foundIsbnStr,
+          isbn_published_date: new Date().toISOString().split('T')[0],
           last_checked_at: new Date().toISOString()
         });
 
@@ -299,10 +358,10 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
 
 // Start background scheduler on boot
 const settings = getMergedSettings();
-startScheduler(settings.SCHEDULER_INTERVAL || '3x-daily', async () => {
+startScheduler(settings.SCHEDULER_INTERVAL, async () => {
   console.log('[Scheduler] Automatically checking ISBNs...');
   await checkIsbns(getEnv());
-});
+}, settings.SCHEDULER_HOURS);
 
 // Start Node server
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8787;

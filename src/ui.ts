@@ -1,664 +1,191 @@
-export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
+export const renderUI = () => `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ISBN Notify — Dashboard</title>
-  
-  <!-- Font Imports -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  
-  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
-
-  <style>
-    /* Design Tokens */
-    :root {
-      --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --bg-gradient-start: #0b0f19;
-      --bg-gradient-end: #111827;
-      
-      --card-bg: rgba(30, 41, 59, 0.45);
-      --card-border: rgba(255, 255, 255, 0.06);
-      --card-border-hover: rgba(255, 255, 255, 0.12);
-      
-      --color-primary: #3b82f6;
-      --color-primary-hover: #2563eb;
-      --color-accent: #f97316;
-      --color-accent-hover: #ea580c;
-      
-      --color-success: #10b981;
-      --color-success-bg: rgba(16, 185, 129, 0.1);
-      --color-pending: #f59e0b;
-      --color-pending-bg: rgba(245, 158, 11, 0.1);
-      --color-error: #ef4444;
-      --color-error-bg: rgba(239, 68, 68, 0.1);
-      
-      --text-main: #f1f5f9;
-      --text-muted: #94a3b8;
-      
-      --transition-timing: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* Reset */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: var(--font-family);
-      background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
-      color: var(--text-main);
-      min-height: 100vh;
-      line-height: 1.6;
-      padding: 2rem 1rem;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 2rem;
-    }
-
-    /* Glassmorphism Cards */
-    .glass-card {
-      background: var(--card-bg);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--card-border);
-      border-radius: 1rem;
-      padding: 1.5rem;
-      transition: border var(--transition-timing), box-shadow var(--transition-timing);
-    }
-
-    .glass-card:hover {
-      border-color: var(--card-border-hover);
-      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-    }
-
-    /* Header */
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .logo-container {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .logo-icon {
-      color: var(--color-primary);
-      width: 2.25rem;
-      height: 2.25rem;
-    }
-
-    .logo-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
-      background: linear-gradient(to right, #3b82f6, #60a5fa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    /* Tab Switcher */
-    .tabs-nav {
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    .tab-btn {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 0.5rem;
-      padding: 0.5rem 1rem;
-      color: var(--text-muted);
-      font-weight: 600;
-      font-size: 0.875rem;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: all var(--transition-timing);
-      min-height: 40px;
-    }
-
-    .tab-btn:hover {
-      color: var(--text-main);
-      background: rgba(255, 255, 255, 0.07);
-    }
-
-    .tab-btn.active {
-      color: #ffffff;
-      background: var(--color-primary);
-      border-color: var(--color-primary);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    }
-
-    /* Dashboard Layout */
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: 350px 1fr;
-      gap: 2rem;
-    }
-
-    @media (max-width: 1024px) {
-      .dashboard-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    /* Settings Layout */
-    .settings-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-    }
-
-    @media (max-width: 768px) {
-      .settings-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    /* Stats Panel */
-    .stats-container {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-    }
-
-    .stat-card {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      align-items: center;
-      text-align: center;
-    }
-
-    .stat-val {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: var(--text-main);
-    }
-
-    .stat-lbl {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-    }
-
-    /* Forms */
-    .form-title {
-      font-size: 1.125rem;
-      font-weight: 600;
-      margin-bottom: 1.25rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .form-group {
-      margin-bottom: 1rem;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: var(--text-muted);
-      margin-bottom: 0.375rem;
-    }
-
-    .form-control {
-      width: 100%;
-      background: rgba(15, 23, 42, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 0.5rem;
-      padding: 0.65rem 0.875rem;
-      color: var(--text-main);
-      font-size: 0.875rem;
-      transition: border var(--transition-timing);
-    }
-
-    .form-control:focus {
-      outline: none;
-      border-color: var(--color-primary);
-    }
-
-    /* Buttons */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      border: none;
-      border-radius: 0.5rem;
-      font-size: 0.875rem;
-      font-weight: 600;
-      padding: 0.65rem 1.25rem;
-      cursor: pointer;
-      transition: background-color var(--transition-timing), transform var(--transition-timing), opacity var(--transition-timing);
-      text-decoration: none;
-      min-height: 44px;
-      min-width: 44px;
-    }
-
-    .btn-primary {
-      background-color: var(--color-primary);
-      color: #ffffff;
-    }
-
-    .btn-primary:hover {
-      background-color: var(--color-primary-hover);
-    }
-
-    .btn-accent {
-      background-color: var(--color-accent);
-      color: #ffffff;
-    }
-
-    .btn-accent:hover {
-      background-color: var(--color-accent-hover);
-    }
-
-    .btn-danger {
-      background-color: var(--color-error-bg);
-      color: var(--color-error);
-      border: 1px solid rgba(239, 68, 68, 0.2);
-    }
-
-    .btn-danger:hover {
-      background-color: var(--color-error);
-      color: #ffffff;
-    }
-
-    .btn-icon {
-      padding: 0.5rem;
-      border-radius: 0.5rem;
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text-muted);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      cursor: pointer;
-    }
-
-    .btn-icon:hover {
-      color: var(--text-main);
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .w-full {
-      width: 100%;
-    }
-
-    /* Books Table List */
-    .panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .panel-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .search-bar {
-      display: flex;
-      gap: 0.5rem;
-      flex-grow: 1;
-      max-width: 400px;
-    }
-
-    .table-container {
-      overflow-x: auto;
-      border-radius: 0.75rem;
-      background: rgba(15, 23, 42, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 0.875rem;
-    }
-
-    th {
-      background: rgba(15, 23, 42, 0.4);
-      color: var(--text-muted);
-      font-weight: 600;
-      padding: 1rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    td {
-      padding: 1rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-      vertical-align: middle;
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    tr:hover td {
-      background: rgba(255, 255, 255, 0.01);
-    }
-
-    /* Badges */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.375rem;
-      padding: 0.25rem 0.75rem;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .badge-success {
-      background-color: var(--color-success-bg);
-      color: var(--color-success);
-    }
-
-    .badge-pending {
-      background-color: var(--color-pending-bg);
-      color: var(--color-pending);
-      animation: pulse-amber 2s infinite ease-in-out;
-    }
-
-    @keyframes pulse-amber {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.75; }
-    }
-
-    /* Helpers */
-    .font-mono {
-      font-family: monospace;
-      font-size: 0.8125rem;
-      letter-spacing: 0.05em;
-    }
-
-    .text-right {
-      text-align: right;
-    }
-
-    .flex-actions {
-      display: flex;
-      gap: 0.5rem;
-      justify-content: flex-end;
-    }
-
-    .empty-state {
-      padding: 3rem 1.5rem;
-      text-align: center;
-      color: var(--text-muted);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .empty-icon {
-      width: 3rem;
-      height: 3rem;
-      stroke-width: 1.5;
-      color: rgba(255, 255, 255, 0.15);
-    }
-
-    /* Notifications & Alert */
-    .alert-banner {
-      position: fixed;
-      bottom: 2rem;
-      right: 2rem;
-      z-index: 200;
-      max-width: 420px;
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-      border-radius: 0.75rem;
-      padding: 1rem;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-      animation: slide-in var(--transition-timing);
-    }
-
-    @keyframes slide-in {
-      from { transform: translateY(1rem); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-
-    .alert-success {
-      background: rgba(16, 185, 129, 0.95);
-      border: 1px solid #10b981;
-      color: #ffffff;
-    }
-
-    .alert-error {
-      background: rgba(239, 68, 68, 0.95);
-      border: 1px solid #ef4444;
-      color: #ffffff;
-    }
-
-    .alert-close {
-      cursor: pointer;
-      background: none;
-      border: none;
-      color: rgba(255, 255, 255, 0.7);
-      margin-left: auto;
-    }
-
-    .alert-close:hover {
-      color: #ffffff;
-    }
-
-    /* Spin loader */
-    .spinner {
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* Login Overlay Style */
-    .login-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(8, 12, 21, 0.85);
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      z-index: 1000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      transition: opacity 300ms ease;
-    }
-  </style>
+  <link rel="stylesheet" href="/ui.css">
 </head>
 <body>
 
   <!-- Full-screen Login Overlay -->
   <div id="loginOverlay" class="login-overlay">
-    <div class="glass-card" style="width: 100%; max-width: 400px; text-align: center; display: flex; flex-direction: column; gap: 1.5rem; padding: 2rem;">
-      <div class="logo-container" style="justify-content: center;">
-        <svg class="logo-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+    <div class="glass-card" style="width:100%;max-width:400px;text-align:center;display:flex;flex-direction:column;gap:1.5rem;padding:2rem">
+      <div class="logo-container" style="justify-content:center">
+        <svg class="logo-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="ISBN Notify logo">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
         </svg>
         <span class="logo-title">ISBN Notify</span>
       </div>
-      
       <div>
-        <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.375rem; letter-spacing: -0.01em;">Dashboard Terkunci</h3>
-        <p style="font-size: 0.875rem; color: var(--text-muted);">Masukkan Password Akses Anda untuk mengelola pelacakan ISBN.</p>
+        <h3 style="font-size:1.125rem;font-weight:700;margin-bottom:0.375rem">Dashboard Terkunci</h3>
+        <p style="font-size:0.875rem;color:var(--text-muted)">Masukkan Password Akses Anda untuk mengelola pelacakan ISBN.</p>
       </div>
-
-      <form onsubmit="handleLogin(event)" style="display: flex; flex-direction: column; gap: 1rem;">
-        <div class="form-group" style="text-align: left;">
+      <form onsubmit="handleLogin(event)" style="display:flex;flex-direction:column;gap:1rem">
+        <div class="form-group" style="text-align:left">
           <label for="loginPassword">Password Akses</label>
-          <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+          <input type="password" id="loginPassword" class="form-control" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" required autocomplete="current-password">
         </div>
         <button type="submit" class="btn btn-primary w-full" id="btnLoginSubmit">
-          <i data-lucide="unlock" style="width: 1.1rem; height: 1.1rem;"></i>
+          <i data-lucide="unlock" style="width:1.1rem;height:1.1rem"></i>
           Buka Dashboard
         </button>
       </form>
     </div>
   </div>
 
-  <div class="container" id="dashboardContent" style="display: none;">
-    
+  <div class="container" id="dashboardContent" style="display:none">
+
     <!-- Top Header -->
     <header class="glass-card">
       <div class="logo-container">
-        <svg class="logo-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+        <svg class="logo-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="ISBN Notify logo">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
         </svg>
         <span class="logo-title">ISBN Notify</span>
       </div>
-      
-      <!-- Tab Navigation Switcher -->
       <nav class="tabs-nav" aria-label="Main Navigation">
         <button type="button" id="tabBtnTracking" class="tab-btn active" onclick="switchTab('tracking')">
-          <i data-lucide="book-open" style="width: 1rem; height: 1rem;"></i>
+          <i data-lucide="book-open" style="width:1rem;height:1rem"></i>
           Tracking List
         </button>
         <button type="button" id="tabBtnSettings" class="tab-btn" onclick="switchTab('settings')">
-          <i data-lucide="sliders" style="width: 1rem; height: 1rem;"></i>
+          <i data-lucide="sliders" style="width:1rem;height:1rem"></i>
           Settings & Scheduler
         </button>
-        <button type="button" class="tab-btn" style="color: var(--color-error); background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.1);" onclick="handleLogout()">
-          <i data-lucide="log-out" style="width: 1rem; height: 1rem;"></i>
+        <button type="button" class="tab-btn" style="color:var(--color-error);background:rgba(239,68,68,0.05);border-color:rgba(239,68,68,0.1)" onclick="handleLogout()">
+          <i data-lucide="log-out" style="width:1rem;height:1rem"></i>
           Logout
         </button>
       </nav>
     </header>
 
-    <!-- Tab 1: Tracking Dashboard Layout -->
+    <!-- Tab 1: Tracking Dashboard -->
     <div id="tabContentTracking" class="dashboard-grid">
-      
-      <!-- Left Panel: Stats & Register Form -->
-      <div style="display: flex; flex-direction: column; gap: 2rem;">
-        
-        <!-- Stats Summary Card -->
-        <section class="glass-card stats-container">
-          <div class="stat-card">
-            <span class="stat-val" id="statTotal">0</span>
-            <span class="stat-lbl">Total</span>
-          </div>
-          <div style="width: 1px; background: rgba(255, 255, 255, 0.05); height: 100%;"></div>
-          <div class="stat-card">
-            <span class="stat-val" id="statPending" style="color: var(--color-pending);">0</span>
-            <span class="stat-lbl">Pending</span>
-          </div>
-          <div style="width: 1px; background: rgba(255, 255, 255, 0.05); height: 100%;"></div>
-          <div class="stat-card">
-            <span class="stat-val" id="statCompleted" style="color: var(--color-success);">0</span>
-            <span class="stat-lbl">Done</span>
-          </div>
-        </section>
 
-        <!-- Register Book Card -->
-        <section class="glass-card">
-          <h2 class="form-title">
-            <i data-lucide="plus-circle" class="logo-icon" style="width: 1.25rem; height: 1.25rem;"></i>
-            Register New Book
-          </h2>
-          <form id="addBookForm" onsubmit="handleAddBook(event)">
-            
-            <div class="form-group">
-              <label for="title">Book Title *</label>
-              <input type="text" id="title" class="form-control" placeholder="e.g. Laskar Pelangi" required>
-            </div>
-            
-            <div class="form-group">
-              <label for="publisher">Publisher (Optional)</label>
-              <input type="text" id="publisher" class="form-control" placeholder="e.g. Bentang Pustaka">
-            </div>
-            
-            <div class="form-group">
-              <label for="author">Author (Optional)</label>
-              <input type="text" id="author" class="form-control" placeholder="e.g. Andrea Hirata">
-            </div>
-            
-            <!-- Collapse/Advanced Notif Settings trigger -->
-            <div style="margin: 1.25rem 0 0.75rem 0;">
-              <button type="button" class="btn-icon" style="width: 100%; display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; font-weight: 600; padding: 0.5rem 0.75rem;" onclick="toggleAdvancedSettings()">
-                <span>Advanced Routing Override</span>
-                <i data-lucide="chevron-down" id="advChevron" style="width: 1rem; height: 1rem; transition: transform var(--transition-timing);"></i>
-              </button>
-            </div>
-            
-            <!-- Advanced fields -->
-            <div id="advancedSettings" style="display: none; padding-top: 0.5rem; border-top: 1px dashed rgba(255,255,255,0.05); margin-bottom: 1.25rem;">
-              <div class="form-group">
-                <label for="ntfyTopic">ntfy Topic Override</label>
-                <input type="text" id="ntfyTopic" class="form-control" placeholder="e.g. my-custom-topic">
-              </div>
-              <div class="form-group">
-                <label for="tgChatId">Telegram Chat ID Override</label>
-                <input type="text" id="tgChatId" class="form-control" placeholder="e.g. -100123456789">
-              </div>
-              <div class="form-group">
-                <label for="webhookUrl">Webhook URL Override</label>
-                <input type="url" id="webhookUrl" class="form-control" placeholder="e.g. https://api.myweb.com/hook">
-              </div>
-            </div>
-            
-            <button type="submit" class="btn btn-primary w-full" id="btnSubmit">
-              <i data-lucide="save" style="width: 1.1rem; height: 1.1rem;"></i>
-              Start Tracking
+      <!-- Stats -->
+      <section id="statsPanel" class="glass-card stats-container">
+        <div class="stat-card">
+          <span class="stat-val" id="statTotal">0</span>
+          <span class="stat-lbl">Total</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-card">
+          <span class="stat-val" id="statPending" style="color:var(--color-pending)">0</span>
+          <span class="stat-lbl">Pending</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-card">
+          <span class="stat-val" id="statCompleted" style="color:var(--color-success)">0</span>
+          <span class="stat-lbl">Done</span>
+        </div>
+      </section>
+
+      <!-- Analysis -->
+      <section id="analysisPanel" class="glass-card">
+        <h2 class="form-title" style="margin-bottom:0.75rem">
+          <i data-lucide="bar-chart-2" class="logo-icon" style="width:1.25rem;height:1.25rem;color:var(--color-primary)"></i>
+          Analisis Waktu Terbit
+        </h2>
+        <div class="form-group" style="margin-bottom:0.75rem">
+          <label for="avgTimeFilter">Filter Rentang Waktu</label>
+          <select id="avgTimeFilter" class="form-control" onchange="calculateAverageTime()" style="cursor:pointer;background:rgba(15,23,42,0.8)">
+            <option value="all">Semua Waktu</option>
+            <option value="1m">1 Bulan Terakhir</option>
+            <option value="2m">2 Bulan Terakhir</option>
+            <option value="3m">3 Bulan Terakhir</option>
+            <option value="custom">Rentang Kustom</option>
+          </select>
+        </div>
+        <div id="customRangePicker" style="display:none;gap:0.5rem;margin-bottom:0.75rem">
+          <div style="flex:1">
+            <label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">Dari Tanggal</label>
+            <input type="date" id="avgStartDate" class="form-control" onchange="calculateAverageTime()">
+          </div>
+          <div style="flex:1">
+            <label style="display:block;font-size:0.75rem;color:var(--text-muted);margin-bottom:0.25rem">Sampai Tanggal</label>
+            <input type="date" id="avgEndDate" class="form-control" onchange="calculateAverageTime()">
+          </div>
+        </div>
+        <div style="background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.1);border-radius:0.5rem;padding:0.75rem;text-align:center;margin-top:0.5rem">
+          <span style="display:block;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:0.15rem">Rata-rata Waktu Pengajuan</span>
+          <span id="avgTimeResult" style="font-size:1.5rem;font-weight:700;color:var(--color-success)">0.0 Hari</span>
+          <span id="avgTimeCount" style="font-size:0.75rem;color:var(--text-muted);display:block;margin-top:0.15rem">(Berdasarkan 0 buku terbit)</span>
+        </div>
+      </section>
+
+      <!-- Register -->
+      <section id="registerPanel" class="glass-card">
+        <h2 class="form-title">
+          <i data-lucide="plus-circle" class="logo-icon" style="width:1.25rem;height:1.25rem"></i>
+          Register New Book
+        </h2>
+        <form id="addBookForm" onsubmit="handleAddBook(event)">
+          <div class="form-group">
+            <label for="title">Book Title *</label>
+            <input type="text" id="title" class="form-control" placeholder="e.g. Laskar Pelangi" required>
+          </div>
+          <div class="form-group">
+            <label for="publisher">Publisher</label>
+            <input type="text" id="publisher" class="form-control" placeholder="e.g. Bentang Pustaka">
+          </div>
+          <div class="form-group">
+            <label for="author">Author</label>
+            <input type="text" id="author" class="form-control" placeholder="e.g. Andrea Hirata">
+          </div>
+          <div class="form-group">
+            <label for="submissionDate">Tanggal Pengajuan *</label>
+            <input type="date" id="submissionDate" class="form-control" required>
+          </div>
+
+          <div style="margin:1.25rem 0 0.75rem 0">
+            <button type="button" class="btn-icon" style="width:100%;display:flex;align-items:center;justify-content:space-between;font-size:0.75rem;font-weight:600;padding:0.5rem 0.75rem" onclick="toggleAdvancedSettings()">
+              <span>Advanced Routing Override</span>
+              <i data-lucide="chevron-down" id="advChevron" style="width:1rem;height:1rem;transition:transform var(--transition-timing)"></i>
             </button>
-            
-          </form>
-        </section>
+          </div>
 
-      </div>
+          <div id="advancedSettings" style="display:none;padding-top:0.5rem;border-top:1px dashed rgba(255,255,255,0.05);margin-bottom:1.25rem">
+            <div class="form-group">
+              <label for="ntfyTopic">ntfy Topic Override</label>
+              <input type="text" id="ntfyTopic" class="form-control" placeholder="e.g. my-custom-topic">
+            </div>
+            <div class="form-group">
+              <label for="tgChatId">Telegram Chat ID Override</label>
+              <input type="text" id="tgChatId" class="form-control" placeholder="e.g. -100123456789">
+            </div>
+            <div class="form-group">
+              <label for="webhookUrl">Webhook URL Override</label>
+              <input type="url" id="webhookUrl" class="form-control" placeholder="e.g. https://api.myweb.com/hook">
+            </div>
+          </div>
 
-      <!-- Right Panel: Tracking List Panel -->
-      <section class="glass-card" style="display: flex; flex-direction: column;">
-        
+          <button type="submit" class="btn btn-primary w-full" id="btnSubmit">
+            <i data-lucide="save" style="width:1.1rem;height:1.1rem"></i>
+            Start Tracking
+          </button>
+        </form>
+      </section>
+
+      <!-- Right Panel: Table -->
+      <section id="trackingPanel" class="glass-card" style="display:flex;flex-direction:column">
         <div class="panel-header">
           <h2 class="panel-title">
-            <i data-lucide="book-open" class="logo-icon" style="width: 1.25rem; height: 1.25rem; color: var(--color-accent)"></i>
+            <i data-lucide="book-open" class="logo-icon" style="width:1.25rem;height:1.25rem;color:var(--color-accent)"></i>
             Tracking List
           </h2>
-          
           <div class="search-bar">
             <input type="text" id="searchQuery" class="form-control" placeholder="Search title or publisher..." oninput="renderBooksTable()">
           </div>
-          
           <button type="button" class="btn btn-accent" id="btnCheckNow" onclick="handleManualCheck()">
-            <i data-lucide="refresh-cw" id="checkIcon" style="width: 1.1rem; height: 1.1rem;"></i>
+            <i data-lucide="refresh-cw" id="checkIcon" style="width:1.1rem;height:1.1rem"></i>
             <span>Check ISBNs</span>
           </button>
         </div>
-
-        <!-- Table container -->
         <div class="table-container">
           <table id="booksTable">
             <thead>
@@ -670,32 +197,25 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
                 <th class="text-right">Actions</th>
               </tr>
             </thead>
-            <tbody id="booksListBody">
-              <!-- Dynamically populated -->
-            </tbody>
+            <tbody id="booksListBody"></tbody>
           </table>
         </div>
-
       </section>
-
     </div>
 
-    <!-- Tab 2: Settings Layout (Hidden by default) -->
-    <div id="tabContentSettings" class="settings-grid" style="display: none;">
-      
-      <!-- Settings Panel 1: Notification Preferences -->
-      <div style="display: flex; flex-direction: column; gap: 2rem;">
-        
-        <!-- Telegram & ntfy config -->
+    <!-- Tab 2: Settings -->
+    <div id="tabContentSettings" class="settings-grid" style="display:none">
+
+      <!-- Notifications -->
+      <div style="display:flex;flex-direction:column;gap:2rem">
         <section class="glass-card">
           <h2 class="form-title">
-            <i data-lucide="bell" class="logo-icon" style="width: 1.25rem; height: 1.25rem;"></i>
+            <i data-lucide="bell" class="logo-icon" style="width:1.25rem;height:1.25rem"></i>
             Notification Integrations
           </h2>
           <form id="settingsNotifForm" onsubmit="handleSaveSettings(event)">
-            
-            <div style="margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
-              <h3 style="font-size: 0.875rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.75rem;">ntfy.sh Configuration</h3>
+            <div style="margin-bottom:1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:1rem">
+              <h3 style="font-size:0.875rem;font-weight:600;color:var(--color-primary);margin-bottom:0.75rem">ntfy.sh Configuration</h3>
               <div class="form-group">
                 <label for="cfgNtfyUrl">Server Base URL</label>
                 <input type="url" id="cfgNtfyUrl" class="form-control" placeholder="https://ntfy.sh">
@@ -705,13 +225,12 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
                 <input type="text" id="cfgNtfyTopic" class="form-control" placeholder="isbn">
               </div>
               <div class="form-group">
-                <label for="cfgNtfyAuth">Authorization Token / Credentials</label>
+                <label for="cfgNtfyAuth">Authorization Token</label>
                 <input type="password" id="cfgNtfyAuth" class="form-control" placeholder="username:password or Bearer token">
               </div>
             </div>
-
-            <div style="margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
-              <h3 style="font-size: 0.875rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.75rem;">Telegram Bot Configuration</h3>
+            <div style="margin-bottom:1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:1rem">
+              <h3 style="font-size:0.875rem;font-weight:600;color:var(--color-primary);margin-bottom:0.75rem">Telegram Bot Configuration</h3>
               <div class="form-group">
                 <label for="cfgTgToken">Telegram Bot Token</label>
                 <input type="password" id="cfgTgToken" class="form-control" placeholder="123456789:ABCdefGhI...">
@@ -721,559 +240,133 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
                 <input type="text" id="cfgTgChat" class="form-control" placeholder="-100123456789">
               </div>
             </div>
-
             <div>
-              <h3 style="font-size: 0.875rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.75rem;">Webhook Settings</h3>
+              <h3 style="font-size:0.875rem;font-weight:600;color:var(--color-primary);margin-bottom:0.75rem">Webhook Settings</h3>
               <div class="form-group">
                 <label for="cfgWebhookUrl">Default Webhook URL</label>
                 <input type="url" id="cfgWebhookUrl" class="form-control" placeholder="https://your-domain.com/webhook">
               </div>
             </div>
-
           </form>
         </section>
-
       </div>
 
-      <!-- Settings Panel 2: Scheduler Settings -->
-      <div style="display: flex; flex-direction: column; gap: 2rem;">
-        
-        <!-- Scheduler configuration -->
-        <section class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+      <!-- Scheduler -->
+      <div style="display:flex;flex-direction:column;gap:2rem">
+        <section class="glass-card" style="display:flex;flex-direction:column;justify-content:space-between;height:100%">
           <div>
             <h2 class="form-title">
-              <i data-lucide="clock" class="logo-icon" style="width: 1.25rem; height: 1.25rem; color: var(--color-accent)"></i>
+              <i data-lucide="clock" class="logo-icon" style="width:1.25rem;height:1.25rem;color:var(--color-accent)"></i>
               Background Scheduler
             </h2>
-            <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+            <p style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:1.5rem">
               Atur seberapa sering server akan melakukan pengecekan ISBN baru ke Perpusnas secara otomatis di latar belakang.
             </p>
-
             <div class="form-group">
               <label for="cfgScheduler">Interval Pengecekan</label>
-              <select id="cfgScheduler" class="form-control" style="background: rgba(15, 23, 42, 0.8); cursor: pointer;">
-                <option value="3x-daily">3x Sehari (09:00, 13:00, 17:00 Waktu Lokal)</option>
-                <option value="hourly">Setiap Jam (Sekali tiap 60 menit)</option>
-                <option value="daily">Setiap Hari (09:00 Waktu Lokal)</option>
+              <select id="cfgScheduler" class="form-control" style="background:rgba(15,23,42,0.8);cursor:pointer" onchange="toggleHoursVisibility()">
+                <option value="custom">Pilih Jam Kustom (Bebas Pilih Jam)</option>
                 <option value="disabled">Manual Saja (Nonaktifkan Pengecekan Otomatis)</option>
               </select>
             </div>
-            
-            <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.1); border-radius: 0.5rem; padding: 1rem; margin-top: 1.5rem; font-size: 0.8125rem;">
-              <h4 style="font-weight: 600; color: var(--color-primary); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.25rem;">
-                <i data-lucide="info" style="width: 1rem; height: 1rem;"></i> Info Penjadwal
+            <div id="customHoursContainer" style="margin-bottom:1.25rem;display:none">
+              <label style="display:block;font-size:0.8125rem;font-weight:500;color:var(--text-muted);margin-bottom:0.5rem">Pilih Jam Jalur Otomatis (Waktu Lokal Server)</label>
+              <div id="customHoursGrid"></div>
+              <div id="schedulerWarning" style="display:none;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);border-radius:0.5rem;padding:0.75rem;margin-top:0.75rem;color:#f59e0b;font-size:0.75rem;align-items:flex-start;gap:0.5rem">
+                <i data-lucide="alert-triangle" style="width:1.1rem;height:1.1rem;flex-shrink:0;margin-top:0.1rem"></i>
+                <span><strong>Peringatan:</strong> Memilih lebih dari 4 kali pemeriksaan per hari dapat meningkatkan risiko pemblokiran firewall (WAF) dari server Perpusnas.</span>
+              </div>
+            </div>
+            <div style="background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.1);border-radius:0.5rem;padding:1rem;margin-top:1.5rem;font-size:0.8125rem">
+              <h4 style="font-weight:600;color:var(--color-primary);margin-bottom:0.25rem;display:flex;align-items:center;gap:0.25rem">
+                <i data-lucide="info" style="width:1rem;height:1rem"></i> Info Penjadwal
               </h4>
-              Pilihan interval menggunakan waktu internal sistem operasi server Anda. Untuk mode <b>3x Sehari</b> dan <b>Harian</b>, penjadwal secara cerdas akan melewati hari libur Sabtu & Minggu (hanya berjalan pada hari kerja Senin-Jumat).
+              Pilihan penjadwalan kustom menggunakan waktu internal sistem operasi server Anda dan secara cerdas akan melewati hari libur Sabtu & Minggu (hanya berjalan pada hari kerja Senin-Jumat).
             </div>
           </div>
-
-          <div style="margin-top: 2rem;">
+          <div style="margin-top:2rem">
             <button type="button" class="btn btn-primary w-full" onclick="document.getElementById('btnSaveSettings').click()">
-              <i data-lucide="save" style="width: 1.1rem; height: 1.1rem;"></i>
+              <i data-lucide="save" style="width:1.1rem;height:1.1rem"></i>
               Save Configuration
             </button>
-            <button type="submit" id="btnSaveSettings" form="settingsNotifForm" style="display: none;"></button>
+            <button type="submit" id="btnSaveSettings" form="settingsNotifForm" style="display:none"></button>
           </div>
         </section>
-
       </div>
-
     </div>
-
   </div>
 
-  <!-- Banner Alerts -->
+  <!-- Edit Modal -->
+  <div id="editBookModal" class="login-overlay" style="display:none;opacity:0;z-index:var(--z-modal)">
+    <div class="glass-card" style="width:100%;max-width:500px;padding:2rem;display:flex;flex-direction:column;gap:1.5rem;max-height:90vh;overflow-y:auto">
+      <h2 class="form-title">
+        <i data-lucide="edit-3" class="logo-icon" style="width:1.25rem;height:1.25rem;color:var(--color-primary)"></i>
+        Edit Book Details
+      </h2>
+      <form id="editBookForm" onsubmit="handleSaveBookEdit(event)">
+        <input type="hidden" id="editBookId">
+        <div class="form-group">
+          <label for="editTitle">Book Title *</label>
+          <input type="text" id="editTitle" class="form-control" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editPublisher">Publisher</label>
+            <input type="text" id="editPublisher" class="form-control">
+          </div>
+          <div class="form-group">
+            <label for="editAuthor">Author</label>
+            <input type="text" id="editAuthor" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editSubmissionDate">Tanggal Pengajuan *</label>
+            <input type="date" id="editSubmissionDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="editIsbnPublishedDate">Tanggal Terbit ISBN</label>
+            <input type="date" id="editIsbnPublishedDate" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="editStatus">Status</label>
+            <select id="editStatus" class="form-control" style="background:rgba(15,23,42,0.8)" onchange="toggleEditIsbnField()">
+              <option value="PENDING">PENDING</option>
+              <option value="COMPLETED">COMPLETED</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editIsbn">ISBN Number</label>
+            <input type="text" id="editIsbn" class="form-control" placeholder="e.g. 978-602-...">
+          </div>
+        </div>
+        <div style="margin:0.5rem 0 1rem 0;border-top:1px dashed rgba(255,255,255,0.05);padding-top:0.75rem">
+          <label style="display:block;font-size:0.8125rem;font-weight:600;color:var(--color-primary);margin-bottom:0.5rem">Advanced Routing Override</label>
+          <div class="form-group">
+            <label for="editNtfyTopic">ntfy Topic Override</label>
+            <input type="text" id="editNtfyTopic" class="form-control" placeholder="e.g. my-custom-topic">
+          </div>
+          <div class="form-group">
+            <label for="editTgChatId">Telegram Chat ID Override</label>
+            <input type="text" id="editTgChatId" class="form-control" placeholder="e.g. -100123456789">
+          </div>
+          <div class="form-group">
+            <label for="editWebhookUrl">Webhook URL Override</label>
+            <input type="url" id="editWebhookUrl" class="form-control" placeholder="e.g. https://api.myweb.com/hook">
+          </div>
+        </div>
+        <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem">
+          <button type="button" class="btn btn-danger" onclick="closeEditModal()">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveEditSubmit">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="alertContainer"></div>
 
-  <script>
-    let booksData = [];
-    let currentTab = 'tracking';
-
-    // Verify Password Login Flow
-    async function handleLogin(e) {
-      e.preventDefault();
-      const password = document.getElementById('loginPassword').value;
-      const btn = document.getElementById('btnLoginSubmit');
-      
-      btn.disabled = true;
-
-      try {
-        const res = await fetch('/verify', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ password })
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          localStorage.setItem('isbn_notify_api_key', password);
-          
-          // Animate overlay removal
-          const overlay = document.getElementById('loginOverlay');
-          overlay.style.opacity = '0';
-          setTimeout(() => {
-            overlay.style.display = 'none';
-            document.getElementById('dashboardContent').style.display = 'flex';
-          }, 300);
-
-          showAlert("Autentikasi berhasil. Selamat datang!", "success");
-          loadBooks();
-          loadSettings();
-        } else {
-          showAlert("Password yang Anda masukkan salah.", "error");
-        }
-      } catch (err) {
-        console.error(err);
-        showAlert("Gagal menghubungkan ke server.", "error");
-      } finally {
-        btn.disabled = false;
-      }
-    }
-
-    // Auto trigger verify if password exists in localStorage
-    window.addEventListener('DOMContentLoaded', async () => {
-      const storedKey = localStorage.getItem('isbn_notify_api_key');
-      if (storedKey) {
-        try {
-          const res = await fetch('/verify', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ password: storedKey })
-          });
-          const data = await res.json();
-          if (data.success) {
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('dashboardContent').style.display = 'flex';
-            loadBooks();
-            loadSettings();
-            return;
-          }
-        } catch (_) {}
-      }
-      
-      // Fallback: show overlay
-      document.getElementById('loginOverlay').style.opacity = '1';
-      document.getElementById('loginOverlay').style.display = 'flex';
-    });
-
-    // Logout trigger
-    function handleLogout() {
-      if (confirm("Apakah Anda yakin ingin logout?")) {
-        localStorage.removeItem('isbn_notify_api_key');
-        document.getElementById('loginPassword').value = '';
-        document.getElementById('dashboardContent').style.display = 'none';
-        
-        const overlay = document.getElementById('loginOverlay');
-        overlay.style.display = 'flex';
-        overlay.style.opacity = '1';
-        
-        switchTab('tracking');
-      }
-    }
-
-    // Switch Tabs helper
-    function switchTab(tabId) {
-      currentTab = tabId;
-      const tabTracking = document.getElementById('tabContentTracking');
-      const tabSettings = document.getElementById('tabContentSettings');
-      
-      const btnTracking = document.getElementById('tabBtnTracking');
-      const btnSettings = document.getElementById('tabBtnSettings');
-
-      if (tabId === 'tracking') {
-        tabTracking.style.display = 'grid';
-        tabSettings.style.display = 'none';
-        btnTracking.classList.add('active');
-        btnSettings.classList.remove('active');
-        loadBooks();
-      } else {
-        tabTracking.style.display = 'none';
-        tabSettings.style.display = 'grid';
-        btnTracking.classList.remove('active');
-        btnSettings.classList.add('active');
-        loadSettings();
-      }
-    }
-
-    // Helper to get active API key
-    function getApiKey() {
-      return localStorage.getItem('isbn_notify_api_key') || '';
-    }
-
-    // Toggle advanced form settings
-    function toggleAdvancedSettings() {
-      const advDiv = document.getElementById('advancedSettings');
-      const chevron = document.getElementById('advChevron');
-      if (advDiv.style.display === 'none') {
-        advDiv.style.display = 'block';
-        chevron.style.transform = 'rotate(180deg)';
-      } else {
-        advDiv.style.display = 'none';
-        chevron.style.transform = 'rotate(0deg)';
-      }
-    }
-
-    // Load Books from REST API
-    async function loadBooks() {
-      const apiKey = getApiKey();
-      if (!apiKey) return;
-
-      try {
-        const res = await fetch('/books', {
-          headers: {
-            'X-API-Key': apiKey
-          }
-        });
-
-        if (res.status === 401) {
-          handleLogout();
-          return;
-        }
-
-        const data = await res.json();
-        if (data.success) {
-          booksData = data.books || [];
-          renderBooksTable();
-          
-          const pending = booksData.filter(b => b.status === 'PENDING').length;
-          const completed = booksData.filter(b => b.status === 'COMPLETED').length;
-          updateStats({ total: booksData.length, pending, completed });
-        } else {
-          showAlert(data.error || "Gagal memuat daftar buku.", "error");
-        }
-      } catch (err) {
-        console.error(err);
-        showAlert("Gagal menghubungkan ke server.", "error");
-      }
-    }
-
-    // Load global settings from API
-    async function loadSettings() {
-      const apiKey = getApiKey();
-      if (!apiKey) return;
-
-      try {
-        const res = await fetch('/settings', {
-          headers: {
-            'X-API-Key': apiKey
-          }
-        });
-
-        if (res.status === 401) {
-          handleLogout();
-          return;
-        }
-
-        const data = await res.json();
-        if (data.success && data.settings) {
-          const cfg = data.settings;
-          document.getElementById('cfgNtfyUrl').value = cfg.NTFY_DEFAULT_URL || '';
-          document.getElementById('cfgNtfyTopic').value = cfg.NTFY_DEFAULT_TOPIC || '';
-          document.getElementById('cfgNtfyAuth').value = cfg.NTFY_AUTH_TOKEN || '';
-          document.getElementById('cfgTgToken').value = cfg.TELEGRAM_BOT_TOKEN || '';
-          document.getElementById('cfgTgChat').value = cfg.TELEGRAM_DEFAULT_CHAT_ID || '';
-          document.getElementById('cfgWebhookUrl').value = cfg.WEBHOOK_DEFAULT_URL || '';
-          document.getElementById('cfgScheduler').value = cfg.SCHEDULER_INTERVAL || '3x-daily';
-        }
-      } catch (err) {
-        console.error(err);
-        showAlert("Gagal memuat konfigurasi server.", "error");
-      }
-    }
-
-    // Save global settings via API
-    async function handleSaveSettings(e) {
-      e.preventDefault();
-      const apiKey = getApiKey();
-      if (!apiKey) return;
-
-      const payload = {
-        NTFY_DEFAULT_URL: document.getElementById('cfgNtfyUrl').value.trim() || null,
-        NTFY_DEFAULT_TOPIC: document.getElementById('cfgNtfyTopic').value.trim() || null,
-        NTFY_AUTH_TOKEN: document.getElementById('cfgNtfyAuth').value || null,
-        TELEGRAM_BOT_TOKEN: document.getElementById('cfgTgToken').value || null,
-        TELEGRAM_DEFAULT_CHAT_ID: document.getElementById('cfgTgChat').value.trim() || null,
-        WEBHOOK_DEFAULT_URL: document.getElementById('cfgWebhookUrl').value.trim() || null,
-        SCHEDULER_INTERVAL: document.getElementById('cfgScheduler').value
-      };
-
-      try {
-        const res = await fetch('/settings', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': apiKey
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          showAlert("Konfigurasi server berhasil disimpan dan scheduler diperbarui!", "success");
-          loadSettings();
-        } else {
-          showAlert(data.error || "Gagal menyimpan konfigurasi.", "error");
-        }
-      } catch (err) {
-        console.error(err);
-        showAlert("Koneksi gagal saat menyimpan setelan.", "error");
-      }
-    }
-
-    // Show empty state inside the table body
-    function showEmptyStateMessage(msg) {
-      const body = document.getElementById('booksListBody');
-      body.innerHTML = \`
-        <tr>
-          <td colspan="5">
-            <div class="empty-state">
-              <i data-lucide="alert-circle" class="empty-icon"></i>
-              <p>\${msg}</p>
-            </div>
-          </td>
-        </tr>
-      \`;
-      lucide.createIcons();
-    }
-
-    // Update statistics badges
-    function updateStats({ total, pending, completed }) {
-      document.getElementById('statTotal').innerText = total;
-      document.getElementById('statPending').innerText = pending;
-      document.getElementById('statCompleted').innerText = completed;
-    }
-
-    // Render table rows with local filter support
-    function renderBooksTable() {
-      const body = document.getElementById('booksListBody');
-      const search = document.getElementById('searchQuery').value.toLowerCase();
-      
-      const filtered = booksData.filter(b => {
-        const titleMatch = b.title && b.title.toLowerCase().includes(search);
-        const publisherMatch = b.publisher && b.publisher.toLowerCase().includes(search);
-        return titleMatch || publisherMatch;
-      });
-
-      if (filtered.length === 0) {
-        body.innerHTML = \`
-          <tr>
-            <td colspan="5">
-              <div class="empty-state">
-                <i data-lucide="inbox" class="empty-icon"></i>
-                <p>Tidak ada buku dalam pelacakan.</p>
-              </div>
-            </td>
-          </tr>
-        \`;
-        lucide.createIcons();
-        return;
-      }
-
-      body.innerHTML = filtered.map(book => {
-        const badgeClass = book.status === 'COMPLETED' ? 'badge-success' : 'badge-pending';
-        const badgeIcon = book.status === 'COMPLETED' ? 'check' : 'loader-2';
-        const iconPulse = book.status === 'PENDING' ? 'spinner' : '';
-        const authorStr = book.author || '-';
-        const pubStr = book.publisher || '-';
-        const isbnStr = book.isbn ? \`<span class="font-mono bg-slate-900/80 px-2 py-1 rounded border border-slate-700/50">\${book.isbn}</span>\` : '<span class="text-muted">-</span>';
-        
-        return \`
-          <tr>
-            <td>
-              <div style="font-weight: 600; color: var(--text-main);">\${escapeHtml(book.title)}</div>
-            </td>
-            <td>
-              <div style="font-size: 0.8125rem; color: var(--text-main);">A: \${escapeHtml(authorStr)}</div>
-              <div style="font-size: 0.75rem; color: var(--text-muted);">P: \${escapeHtml(pubStr)}</div>
-            </td>
-            <td>
-              <span class="badge \${badgeClass}">
-                <i data-lucide="\${badgeIcon}" class="\${iconPulse}" style="width: 0.85rem; height: 0.85rem;"></i>
-                \${book.status}
-              </span>
-            </td>
-            <td>\${isbnStr}</td>
-            <td class="text-right">
-              <div class="flex-actions">
-                <button type="button" class="btn btn-danger" onclick="handleDeleteBook(\${book.id})" aria-label="Delete book \${book.id}">
-                  <i data-lucide="trash" style="width: 1rem; height: 1rem;"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-        \`;
-      }).join('');
-
-      lucide.createIcons();
-    }
-
-    // Form submit handler to add new book
-    async function handleAddBook(e) {
-      e.preventDefault();
-      const apiKey = getApiKey();
-      if (!apiKey) return;
-
-      const btnSubmit = document.getElementById('btnSubmit');
-      btnSubmit.disabled = true;
-
-      const payload = {
-        title: document.getElementById('title').value.trim(),
-        publisher: document.getElementById('publisher').value.trim() || null,
-        author: document.getElementById('author').value.trim() || null,
-        ntfy_topic: document.getElementById('ntfyTopic').value.trim() || null,
-        tg_chat_id: document.getElementById('tgChatId').value.trim() || null,
-        webhook_url: document.getElementById('webhookUrl').value.trim() || null
-      };
-
-      try {
-        const res = await fetch('/books', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': apiKey
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          showAlert("Buku berhasil didaftarkan untuk dilacak!", "success");
-          document.getElementById('addBookForm').reset();
-          
-          // Collapse advanced settings if open
-          document.getElementById('advancedSettings').style.display = 'none';
-          document.getElementById('advChevron').style.transform = 'rotate(0deg)';
-          
-          loadBooks();
-        } else {
-          showAlert(data.error || "Gagal mendaftarkan buku.", "error");
-        }
-      } catch (err) {
-        console.error(err);
-        showAlert("Gagal menghubungkan ke server.", "error");
-      } finally {
-        btnSubmit.disabled = false;
-      }
-    }
-
-    // Trigger manual check
-    async function handleManualCheck() {
-      const apiKey = getApiKey();
-      if (!apiKey) return;
-
-      const btnCheck = document.getElementById('btnCheckNow');
-      const checkIcon = document.getElementById('checkIcon');
-      btnCheck.disabled = true;
-      checkIcon.classList.add('spinner');
-
-      try {
-        const res = await fetch('/check', {
-          method: 'POST',
-          headers: {
-            'X-API-Key': apiKey
-          }
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          const checked = data.checked || 0;
-          const found = data.found || 0;
-          showAlert(\`Pengecekan selesai. Memeriksa \${checked} buku, ditemukan \${found} nomor ISBN baru!\`, "success");
-          loadBooks();
-        } else {
-          showAlert(data.error || "Gagal memproses pemeriksaan ISBN.", "error");
-        }
-      } catch (err) {
-        console.error(err);
-        showAlert("Terjadi kesalahan koneksi saat pengecekan.", "error");
-      } finally {
-        btnCheck.disabled = false;
-        checkIcon.classList.remove('spinner');
-      }
-    }
-
-    // Delete book from tracking
-    async function handleDeleteBook(id) {
-      if (!confirm("Apakah Anda yakin ingin berhenti melacak dan menghapus data buku ini?")) {
-        return;
-      }
-
-      const apiKey = getApiKey();
-      if (!apiKey) return;
-
-      try {
-        const res = await fetch(\`/books/\${id}\`, {
-          method: 'DELETE',
-          headers: {
-            'X-API-Key': apiKey
-          }
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          showAlert("Buku berhasil dihapus dari daftar pelacakan.", "success");
-          loadBooks();
-        } else {
-          showAlert(data.error || "Gagal menghapus buku.", "error");
-        }
-      } catch (err) {
-        console.error(err);
-        showAlert("Terjadi kesalahan koneksi saat menghapus buku.", "error");
-      }
-    }
-
-    // Alert Banner Manager
-    function showAlert(message, type = "success") {
-      const container = document.getElementById('alertContainer');
-      const bannerClass = type === "success" ? "alert-success" : "alert-error";
-      const icon = type === "success" ? "check-circle" : "x-circle";
-      
-      const alertId = 'alert_' + Date.now();
-      const div = document.createElement('div');
-      div.className = \`alert-banner \${bannerClass}\`;
-      div.id = alertId;
-      div.innerHTML = \`
-        <i data-lucide="\${icon}" style="width: 1.25rem; height: 1.25rem; flex-shrink: 0;"></i>
-        <span>\${escapeHtml(message)}</span>
-        <button type="button" class="alert-close" onclick="closeAlert('\${alertId}')" aria-label="Tutup notifikasi">
-          <i data-lucide="x" style="width: 1rem; height: 1rem;"></i>
-        </button>
-      \`;
-
-      container.appendChild(div);
-      lucide.createIcons();
-
-      // Auto close after 5 seconds
-      setTimeout(() => {
-        closeAlert(alertId);
-      }, 5000);
-    }
-
-    function closeAlert(id) {
-      const el = document.getElementById(id);
-      if (el) {
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(1rem)';
-        el.style.transition = 'opacity var(--transition-timing), transform var(--transition-timing)';
-        setTimeout(() => el.remove(), 200);
-      }
-    }
-
-    // Helper: Escape HTML to prevent XSS
-    function escapeHtml(str) {
-      if (!str) return '';
-      return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
-  </script>
+  <script src="/ui.js"></script>
 </body>
-</html>
-`;
+</html>`;

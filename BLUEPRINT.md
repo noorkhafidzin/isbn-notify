@@ -1,7 +1,7 @@
 # Blueprint — isbn-notify
 
-- **Version:** v1.2.0
-- **Last Updated:** 2026-06-24
+- **Version:** v1.3.1
+- **Last Updated:** 2026-06-25
 - **Tech Stack:** Node.js, Hono, JSON Database (books.json), TypeScript
 
 ---
@@ -96,11 +96,33 @@ Semua endpoint dilindungi menggunakan header `X-API-Key`.
 
 ---
 
-## 5. Linux Crontab Scheduler
+## 5. Dynamic Configurations & Internal Background Scheduler
 
-Penjadwalan pengecekan otomatis didelegasikan ke utilitas **Cron bawaan Linux** pada home server.
-Jadwal rekomendasi diatur 3 kali sehari pada hari kerja: pukul **09:00, 13:00, dan 17:00 WIB** (Senin - Jumat) menyesuaikan jam kerja layanan Perpusnas RI.
+Sistem ini mendukung konfigurasi dinamis yang dapat disesuaikan langsung dari halaman pengaturan Web UI Dashboard (terproteksi kata sandi). Pengaturan ini disimpan secara persisten di file `settings.json` (dan menggunakan environment variable `.env` sebagai cadangan/fallback).
 
-```cron
-0 9,13,17 * * 1-5 curl -X POST http://localhost:8787/check -H "X-API-Key: <api_key_anda>" > /dev/null 2>&1
-```
+### Penjadwal Latar Belakang Internal Node.js:
+Penjadwal latar belakang otomatis dijalankan langsung di memori server Node.js menggunakan pemicu waktu lokal sistem operasi server. Terdapat beberapa mode interval:
+- **`disabled`**: Menonaktifkan pengecekan otomatis (pengecekan hanya berjalan manual).
+- **`custom`**: Melakukan pengecekan otomatis pada jam-jam spesifik (misalnya pukul `09:00`, `13:00`, dan `17:00`) yang dipilih secara bebas dari antarmuka Web UI.
+
+### Fitur Kustomisasi Jadwal & Pencegahan Blokir WAF:
+1. **Weekend Skip:** Pada mode kustom (`custom`), penjadwal secara otomatis melewatkan hari Sabtu dan Minggu (pengecekan hanya akan dijadwalkan ulang pada hari kerja Senin-Jumat) untuk menyelaraskan dengan jam operasional server Perpustakaan Nasional.
+2. **Dynamic Rescheduling:** Setiap kali pengaturan di-save via Web UI, timer aktif lama akan dibersihkan (`clearTimeout`/`clearInterval`) dan penjadwal baru akan dihitung serta dijadwalkan ulang secara real-time.
+3. **Firewall WAF Warning:** Karena server Perpusnas menerapkan Web Application Firewall (WAF) yang ketat, Web UI akan memicu peringatan dinamis jika pengguna mengaktifkan lebih dari 4 jam pemeriksaan dalam sehari, mendidik pengguna agar menghindari risiko pemblokiran IP.
+
+---
+
+## 6. Authentication Overlay & Web UI Security
+
+Aplikasi ini menggunakan Single Page App (SPA) dashboard yang dilindungi oleh **Login Overlay**. 
+- Ketika pengguna pertama kali mengakses halaman root `/`, dashboard penuh dikunci sampai password verifikasi yang dimasukkan cocok dengan nilai `API_KEY` (melalui endpoint `POST /verify`).
+- Kunci API (`X-API-Key`) disimpan secara aman di `localStorage` browser klien dan dilampirkan sebagai header autentikasi pada setiap transaksi REST API.
+
+---
+
+## 7. Responsive Mobile Layout (Web UI & UX)
+
+Dashboard Web UI dirancang secara responsif dan dioptimalkan secara khusus untuk perangkat mobile/seluler:
+- **Priority Stack Order**: Pada lebar viewport <= 1024px, tata letak grid dashboard (`.dashboard-grid`) otomatis diubah susunannya secara bertumpuk dengan prioritas: metrik status (Stats Panel) di bagian paling atas, diikuti oleh daftar pelacakan (Tracking List), formulir registrasi buku baru (Register Panel), dan modul rata-rata waktu terbit (Analysis Panel) di bagian paling bawah.
+- **Table-to-Cards Transformation**: Pada layar <= 768px, tabel daftar pelacakan (`table#booksTable`) bertransformasi menjadi daftar kartu vertikal (cards block list) yang terstruktur rapi. Pseudo-element CSS `td::before { content: attr(data-label); }` digunakan untuk menyisipkan nama kolom secara dinamis di sebelah kiri, mencegah scroll horizontal pada perangkat kecil.
+- **Peningkatan Touch Target**: Elemen navigasi tab, input modal, form row, dan checkbox jam scheduler dirancang responsif dengan class `.form-row` dan grid kolom dinamis untuk memastikan ukuran area tap (touch target) berskala minimal 44x44px, mencegah salah tekan pada perangkat sentuh.

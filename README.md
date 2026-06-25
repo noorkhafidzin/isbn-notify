@@ -85,7 +85,33 @@ Mengembalikan daftar seluruh buku yang sedang dalam pelacakan beserta statusnya 
 
 ---
 
-### 3. Menghapus Buku dari Pelacakan
+### 3. Mengupdate Detail Buku
+Memperbarui informasi properti buku secara dinamis (seperti status, judul, penulis, penerbit, nomor ISBN, tanggal pengajuan, tanggal terbit, atau override notifikasi).
+
+* **Endpoint:** `PUT /books/:id`
+* **Headers:**
+  * `Content-Type: application/json`
+  * `X-API-Key: <nilai_api_key_anda>`
+* **Body (JSON):**
+  ```json
+  {
+    "status": "COMPLETED",
+    "isbn": "978-979-123-456-7",
+    "submission_date": "2026-06-20",
+    "isbn_published_date": "2026-06-25"
+  }
+  ```
+* **Contoh Request (curl):**
+  ```bash
+  curl -X PUT http://localhost:8787/books/1 \
+    -H "Content-Type: application/json" \
+    -H "X-API-Key: isbn-ntfy-keysec-678" \
+    -d '{"status":"COMPLETED","isbn":"978-979-123-456-7","isbn_published_date":"2026-06-25"}'
+  ```
+
+---
+
+### 4. Menghapus Buku dari Pelacakan
 Menghentikan pelacakan dan menghapus data buku berdasarkan ID dari database.
 
 * **Endpoint:** `DELETE /books/:id`
@@ -99,8 +125,8 @@ Menghentikan pelacakan dan menghapus data buku berdasarkan ID dari database.
 
 ---
 
-### 4. Memicu Pengecekan ISBN secara Manual
-Memicu pelacakan otomatis ke database Perpusnas secara instan tanpa perlu menunggu waktu penjadwalan Cron.
+### 5. Memicu Pengecekan ISBN secara Manual
+Memicu pelacakan otomatis ke database Perpusnas secara instan tanpa perlu menunggu waktu penjadwalan.
 
 * **Endpoint:** `POST /check`
 * **Headers:**
@@ -156,24 +182,17 @@ Jika Anda lebih memilih menjalankan aplikasi secara tradisional tanpa Docker:
 
 ---
 
-## ⚙️ Cara Mengatur Jadwal Cron (Pengecekan Otomatis)
+## ⚙️ Penjadwal Latar Belakang Otomatis (Internal Scheduler)
 
-Karena server berjalan secara mandiri (self-hosted), kita menggunakan utilitas **Linux Cron** bawaan untuk menembak endpoint `/check` secara berkala (misal 3 kali sehari pada jam kerja pukul **09:00, 13:00, dan 17:00 WIB** dari hari Senin s/d Jumat).
+Sistem ini memiliki **Internal Background Scheduler** yang berjalan langsung di memori server Node.js. Anda **tidak perlu lagi** mengkonfigurasi utilitas Linux Crontab secara manual.
 
-### 1. Buka Konfigurasi Crontab
-Buka crontab editor milik user Anda:
-```bash
-crontab -e
-```
-
-### 2. Tambahkan Baris Penjadwalan
-Tambahkan baris berikut di bagian bawah file (ganti `<api_key_anda>` dengan nilai `API_KEY` Anda di `.env`):
-```cron
-0 9,13,17 * * 1-5 curl -X POST http://localhost:8787/check -H "X-API-Key: <api_key_anda>" > /dev/null 2>&1
-```
-
-> [!NOTE]
-> Berbeda dengan Cloudflare Workers yang menggunakan waktu UTC, Linux crontab biasanya berjalan menggunakan **waktu lokal server Anda** (WIB jika zona waktu server Anda diset ke Asia/Jakarta). Pastikan waktu server Linux Anda sudah sinkron.
+### Cara Penggunaan:
+1. Masuk ke halaman dashboard di browser, lalu buka tab **Settings & Scheduler**.
+2. Pada bagian **Background Scheduler**, pilih interval atau jam-jam spesifik (kustom) pemicuan otomatis pelacakan ISBN:
+   - **Pilih Jam Kustom:** Memungkinkan Anda mencentang jam-jam tertentu (misalnya pukul `09:00`, `13:00`, dan `17:00`) untuk menjalankan pengecekan otomatis.
+   - **Manual Saja:** Menonaktifkan pengecekan otomatis latar belakang.
+3. **Peringatan Batas Frekuensi:** Demi keselamatan server IP Anda dari blokir firewall (WAF) agresif dari portal Perpusnas, Web UI akan memicu warning visual jika Anda memilih lebih dari 4 jam pengecekan dalam satu hari.
+4. **Lewati Akhir Pekan (Weekend Skip):** Penjadwal kustom secara cerdas akan melewati hari Sabtu & Minggu (hanya berjalan pada hari kerja Senin-Jumat) demi menyelaraskan dengan jam kerja operasional server Perpustakaan Nasional.
 
 ---
 
