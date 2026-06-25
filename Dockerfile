@@ -20,12 +20,10 @@ RUN npm ci --omit=dev
 # Copy compiled files from builder
 COPY --from=builder /app/dist ./dist
 
-# Create database volume directory
-RUN mkdir -p /app/data
-
 # Run as non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-RUN chown -R appuser:appgroup /app
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+    && mkdir -p /app/data \
+    && chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 8787
