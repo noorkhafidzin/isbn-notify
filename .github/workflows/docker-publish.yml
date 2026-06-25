@@ -2,16 +2,8 @@ name: Build and Publish Docker Image
 
 on:
   push:
-    branches:
-      - main
-      - master
-    paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - 'BLUEPRINT.md'
-      - '.gitignore'
-      - 'test.js'
-      - 'test_success.js'
+    tags:
+      - 'v*.*.*'
   workflow_dispatch:
 
 env:
@@ -59,6 +51,6 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
