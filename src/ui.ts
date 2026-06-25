@@ -112,30 +112,41 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
       -webkit-text-fill-color: transparent;
     }
 
-    .api-key-box {
+    /* Tab Switcher */
+    .tabs-nav {
       display: flex;
-      align-items: center;
       gap: 0.5rem;
     }
 
-    .input-key {
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+    .tab-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
       border-radius: 0.5rem;
-      padding: 0.6rem 1rem;
-      color: var(--text-main);
+      padding: 0.5rem 1rem;
+      color: var(--text-muted);
+      font-weight: 600;
       font-size: 0.875rem;
-      min-width: 240px;
-      transition: border var(--transition-timing);
-      font-family: monospace;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all var(--transition-timing);
+      min-height: 40px;
     }
 
-    .input-key:focus {
-      outline: none;
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .tab-btn.active {
+      color: #ffffff;
+      background: var(--color-primary);
       border-color: var(--color-primary);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
     }
 
-    /* Dashboard Grid */
+    /* Dashboard Layout */
     .dashboard-grid {
       display: grid;
       grid-template-columns: 350px 1fr;
@@ -144,6 +155,19 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
 
     @media (max-width: 1024px) {
       .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Settings Layout */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 768px) {
+      .settings-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -267,6 +291,7 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
       background: rgba(255, 255, 255, 0.04);
       color: var(--text-muted);
       border: 1px solid rgba(255, 255, 255, 0.05);
+      cursor: pointer;
     }
 
     .btn-icon:hover {
@@ -410,7 +435,7 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
       position: fixed;
       bottom: 2rem;
       right: 2rem;
-      z-index: 50;
+      z-index: 200;
       max-width: 420px;
       display: flex;
       align-items: flex-start;
@@ -458,11 +483,54 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* Login Overlay Style */
+    .login-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(8, 12, 21, 0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      transition: opacity 300ms ease;
+    }
   </style>
 </head>
 <body>
 
-  <div class="container">
+  <!-- Full-screen Login Overlay -->
+  <div id="loginOverlay" class="login-overlay">
+    <div class="glass-card" style="width: 100%; max-width: 400px; text-align: center; display: flex; flex-direction: column; gap: 1.5rem; padding: 2rem;">
+      <div class="logo-container" style="justify-content: center;">
+        <svg class="logo-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+        </svg>
+        <span class="logo-title">ISBN Notify</span>
+      </div>
+      
+      <div>
+        <h3 style="font-size: 1.125rem; font-weight: 700; margin-bottom: 0.375rem; letter-spacing: -0.01em;">Dashboard Terkunci</h3>
+        <p style="font-size: 0.875rem; color: var(--text-muted);">Masukkan Password Akses Anda untuk mengelola pelacakan ISBN.</p>
+      </div>
+
+      <form onsubmit="handleLogin(event)" style="display: flex; flex-direction: column; gap: 1rem;">
+        <div class="form-group" style="text-align: left;">
+          <label for="loginPassword">Password Akses</label>
+          <input type="password" id="loginPassword" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary w-full" id="btnLoginSubmit">
+          <i data-lucide="unlock" style="width: 1.1rem; height: 1.1rem;"></i>
+          Buka Dashboard
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="container" id="dashboardContent" style="display: none;">
     
     <!-- Top Header -->
     <header class="glass-card">
@@ -473,14 +541,25 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
         <span class="logo-title">ISBN Notify</span>
       </div>
       
-      <div class="api-key-box">
-        <label for="apiKey" aria-label="X-API-Key" class="stat-lbl" style="font-size: 0.75rem;">X-API-Key</label>
-        <input type="password" id="apiKey" class="input-key" placeholder="Enter API Key to auth..." aria-required="true">
-      </div>
+      <!-- Tab Navigation Switcher -->
+      <nav class="tabs-nav" aria-label="Main Navigation">
+        <button type="button" id="tabBtnTracking" class="tab-btn active" onclick="switchTab('tracking')">
+          <i data-lucide="book-open" style="width: 1rem; height: 1rem;"></i>
+          Tracking List
+        </button>
+        <button type="button" id="tabBtnSettings" class="tab-btn" onclick="switchTab('settings')">
+          <i data-lucide="sliders" style="width: 1rem; height: 1rem;"></i>
+          Settings & Scheduler
+        </button>
+        <button type="button" class="tab-btn" style="color: var(--color-error); background: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.1);" onclick="handleLogout()">
+          <i data-lucide="log-out" style="width: 1rem; height: 1rem;"></i>
+          Logout
+        </button>
+      </nav>
     </header>
 
-    <!-- Main Content Grid -->
-    <main class="dashboard-grid">
+    <!-- Tab 1: Tracking Dashboard Layout -->
+    <div id="tabContentTracking" class="dashboard-grid">
       
       <!-- Left Panel: Stats & Register Form -->
       <div style="display: flex; flex-direction: column; gap: 2rem;">
@@ -529,7 +608,7 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
             <!-- Collapse/Advanced Notif Settings trigger -->
             <div style="margin: 1.25rem 0 0.75rem 0;">
               <button type="button" class="btn-icon" style="width: 100%; display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; font-weight: 600; padding: 0.5rem 0.75rem;" onclick="toggleAdvancedSettings()">
-                <span>Advanced Notification Routing</span>
+                <span>Advanced Routing Override</span>
                 <i data-lucide="chevron-down" id="advChevron" style="width: 1rem; height: 1rem; transition: transform var(--transition-timing);"></i>
               </button>
             </div>
@@ -599,7 +678,107 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
 
       </section>
 
-    </main>
+    </div>
+
+    <!-- Tab 2: Settings Layout (Hidden by default) -->
+    <div id="tabContentSettings" class="settings-grid" style="display: none;">
+      
+      <!-- Settings Panel 1: Notification Preferences -->
+      <div style="display: flex; flex-direction: column; gap: 2rem;">
+        
+        <!-- Telegram & ntfy config -->
+        <section class="glass-card">
+          <h2 class="form-title">
+            <i data-lucide="bell" class="logo-icon" style="width: 1.25rem; height: 1.25rem;"></i>
+            Notification Integrations
+          </h2>
+          <form id="settingsNotifForm" onsubmit="handleSaveSettings(event)">
+            
+            <div style="margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
+              <h3 style="font-size: 0.875rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.75rem;">ntfy.sh Configuration</h3>
+              <div class="form-group">
+                <label for="cfgNtfyUrl">Server Base URL</label>
+                <input type="url" id="cfgNtfyUrl" class="form-control" placeholder="https://ntfy.sh">
+              </div>
+              <div class="form-group">
+                <label for="cfgNtfyTopic">Default Topic Name</label>
+                <input type="text" id="cfgNtfyTopic" class="form-control" placeholder="isbn">
+              </div>
+              <div class="form-group">
+                <label for="cfgNtfyAuth">Authorization Token / Credentials</label>
+                <input type="password" id="cfgNtfyAuth" class="form-control" placeholder="username:password or Bearer token">
+              </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
+              <h3 style="font-size: 0.875rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.75rem;">Telegram Bot Configuration</h3>
+              <div class="form-group">
+                <label for="cfgTgToken">Telegram Bot Token</label>
+                <input type="password" id="cfgTgToken" class="form-control" placeholder="123456789:ABCdefGhI...">
+              </div>
+              <div class="form-group">
+                <label for="cfgTgChat">Default Chat ID / Channel ID</label>
+                <input type="text" id="cfgTgChat" class="form-control" placeholder="-100123456789">
+              </div>
+            </div>
+
+            <div>
+              <h3 style="font-size: 0.875rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.75rem;">Webhook Settings</h3>
+              <div class="form-group">
+                <label for="cfgWebhookUrl">Default Webhook URL</label>
+                <input type="url" id="cfgWebhookUrl" class="form-control" placeholder="https://your-domain.com/webhook">
+              </div>
+            </div>
+
+          </form>
+        </section>
+
+      </div>
+
+      <!-- Settings Panel 2: Scheduler Settings -->
+      <div style="display: flex; flex-direction: column; gap: 2rem;">
+        
+        <!-- Scheduler configuration -->
+        <section class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+          <div>
+            <h2 class="form-title">
+              <i data-lucide="clock" class="logo-icon" style="width: 1.25rem; height: 1.25rem; color: var(--color-accent)"></i>
+              Background Scheduler
+            </h2>
+            <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+              Atur seberapa sering server akan melakukan pengecekan ISBN baru ke Perpusnas secara otomatis di latar belakang.
+            </p>
+
+            <div class="form-group">
+              <label for="cfgScheduler">Interval Pengecekan</label>
+              <select id="cfgScheduler" class="form-control" style="background: rgba(15, 23, 42, 0.8); cursor: pointer;">
+                <option value="3x-daily">3x Sehari (09:00, 13:00, 17:00 Waktu Lokal)</option>
+                <option value="hourly">Setiap Jam (Sekali tiap 60 menit)</option>
+                <option value="daily">Setiap Hari (09:00 Waktu Lokal)</option>
+                <option value="disabled">Manual Saja (Nonaktifkan Pengecekan Otomatis)</option>
+              </select>
+            </div>
+            
+            <div style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.1); border-radius: 0.5rem; padding: 1rem; margin-top: 1.5rem; font-size: 0.8125rem;">
+              <h4 style="font-weight: 600; color: var(--color-primary); margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.25rem;">
+                <i data-lucide="info" style="width: 1rem; height: 1rem;"></i> Info Penjadwal
+              </h4>
+              Pilihan interval menggunakan waktu internal sistem operasi server Anda. Untuk mode <b>3x Sehari</b> dan <b>Harian</b>, penjadwal secara cerdas akan melewati hari libur Sabtu & Minggu (hanya berjalan pada hari kerja Senin-Jumat).
+            </div>
+          </div>
+
+          <div style="margin-top: 2rem;">
+            <button type="button" class="btn btn-primary w-full" onclick="document.getElementById('btnSaveSettings').click()">
+              <i data-lucide="save" style="width: 1.1rem; height: 1.1rem;"></i>
+              Save Configuration
+            </button>
+            <button type="submit" id="btnSaveSettings" form="settingsNotifForm" style="display: none;"></button>
+          </div>
+        </section>
+
+      </div>
+
+    </div>
 
   </div>
 
@@ -608,23 +787,121 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
 
   <script>
     let booksData = [];
+    let currentTab = 'tracking';
 
-    // Initialize API Key from localStorage or set default
-    const apiKeyInput = document.getElementById('apiKey');
-    const storedKey = localStorage.getItem('isbn_notify_api_key');
-    if (storedKey) {
-      apiKeyInput.value = storedKey;
+    // Verify Password Login Flow
+    async function handleLogin(e) {
+      e.preventDefault();
+      const password = document.getElementById('loginPassword').value;
+      const btn = document.getElementById('btnLoginSubmit');
+      
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ password })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          localStorage.setItem('isbn_notify_api_key', password);
+          
+          // Animate overlay removal
+          const overlay = document.getElementById('loginOverlay');
+          overlay.style.opacity = '0';
+          setTimeout(() => {
+            overlay.style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'flex';
+          }, 300);
+
+          showAlert("Autentikasi berhasil. Selamat datang!", "success");
+          loadBooks();
+          loadSettings();
+        } else {
+          showAlert("Password yang Anda masukkan salah.", "error");
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert("Gagal menghubungkan ke server.", "error");
+      } finally {
+        btn.disabled = false;
+      }
     }
 
-    // Save API key on input change
-    apiKeyInput.addEventListener('input', () => {
-      localStorage.setItem('isbn_notify_api_key', apiKeyInput.value);
-      loadBooks();
+    // Auto trigger verify if password exists in localStorage
+    window.addEventListener('DOMContentLoaded', async () => {
+      const storedKey = localStorage.getItem('isbn_notify_api_key');
+      if (storedKey) {
+        try {
+          const res = await fetch('/verify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ password: storedKey })
+          });
+          const data = await res.json();
+          if (data.success) {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'flex';
+            loadBooks();
+            loadSettings();
+            return;
+          }
+        } catch (_) {}
+      }
+      
+      // Fallback: show overlay
+      document.getElementById('loginOverlay').style.opacity = '1';
+      document.getElementById('loginOverlay').style.display = 'flex';
     });
+
+    // Logout trigger
+    function handleLogout() {
+      if (confirm("Apakah Anda yakin ingin logout?")) {
+        localStorage.removeItem('isbn_notify_api_key');
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('dashboardContent').style.display = 'none';
+        
+        const overlay = document.getElementById('loginOverlay');
+        overlay.style.display = 'flex';
+        overlay.style.opacity = '1';
+        
+        switchTab('tracking');
+      }
+    }
+
+    // Switch Tabs helper
+    function switchTab(tabId) {
+      currentTab = tabId;
+      const tabTracking = document.getElementById('tabContentTracking');
+      const tabSettings = document.getElementById('tabContentSettings');
+      
+      const btnTracking = document.getElementById('tabBtnTracking');
+      const btnSettings = document.getElementById('tabBtnSettings');
+
+      if (tabId === 'tracking') {
+        tabTracking.style.display = 'grid';
+        tabSettings.style.display = 'none';
+        btnTracking.classList.add('active');
+        btnSettings.classList.remove('active');
+        loadBooks();
+      } else {
+        tabTracking.style.display = 'none';
+        tabSettings.style.display = 'grid';
+        btnTracking.classList.remove('active');
+        btnSettings.classList.add('active');
+        loadSettings();
+      }
+    }
 
     // Helper to get active API key
     function getApiKey() {
-      return apiKeyInput.value.trim();
+      return localStorage.getItem('isbn_notify_api_key') || '';
     }
 
     // Toggle advanced form settings
@@ -643,11 +920,7 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
     // Load Books from REST API
     async function loadBooks() {
       const apiKey = getApiKey();
-      if (!apiKey) {
-        showEmptyStateMessage("Enter your X-API-Key above to display tracked books.");
-        updateStats({ total: 0, pending: 0, completed: 0 });
-        return;
-      }
+      if (!apiKey) return;
 
       try {
         const res = await fetch('/books', {
@@ -657,8 +930,7 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
         });
 
         if (res.status === 401) {
-          showEmptyStateMessage("Unauthorized. The API Key you entered is invalid.");
-          updateStats({ total: 0, pending: 0, completed: 0 });
+          handleLogout();
           return;
         }
 
@@ -671,11 +943,84 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
           const completed = booksData.filter(b => b.status === 'COMPLETED').length;
           updateStats({ total: booksData.length, pending, completed });
         } else {
-          showAlert(data.error || "Failed to load books.", "error");
+          showAlert(data.error || "Gagal memuat daftar buku.", "error");
         }
       } catch (err) {
         console.error(err);
-        showAlert("Failed to connect to the server.", "error");
+        showAlert("Gagal menghubungkan ke server.", "error");
+      }
+    }
+
+    // Load global settings from API
+    async function loadSettings() {
+      const apiKey = getApiKey();
+      if (!apiKey) return;
+
+      try {
+        const res = await fetch('/settings', {
+          headers: {
+            'X-API-Key': apiKey
+          }
+        });
+
+        if (res.status === 401) {
+          handleLogout();
+          return;
+        }
+
+        const data = await res.json();
+        if (data.success && data.settings) {
+          const cfg = data.settings;
+          document.getElementById('cfgNtfyUrl').value = cfg.NTFY_DEFAULT_URL || '';
+          document.getElementById('cfgNtfyTopic').value = cfg.NTFY_DEFAULT_TOPIC || '';
+          document.getElementById('cfgNtfyAuth').value = cfg.NTFY_AUTH_TOKEN || '';
+          document.getElementById('cfgTgToken').value = cfg.TELEGRAM_BOT_TOKEN || '';
+          document.getElementById('cfgTgChat').value = cfg.TELEGRAM_DEFAULT_CHAT_ID || '';
+          document.getElementById('cfgWebhookUrl').value = cfg.WEBHOOK_DEFAULT_URL || '';
+          document.getElementById('cfgScheduler').value = cfg.SCHEDULER_INTERVAL || '3x-daily';
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert("Gagal memuat konfigurasi server.", "error");
+      }
+    }
+
+    // Save global settings via API
+    async function handleSaveSettings(e) {
+      e.preventDefault();
+      const apiKey = getApiKey();
+      if (!apiKey) return;
+
+      const payload = {
+        NTFY_DEFAULT_URL: document.getElementById('cfgNtfyUrl').value.trim() || null,
+        NTFY_DEFAULT_TOPIC: document.getElementById('cfgNtfyTopic').value.trim() || null,
+        NTFY_AUTH_TOKEN: document.getElementById('cfgNtfyAuth').value || null,
+        TELEGRAM_BOT_TOKEN: document.getElementById('cfgTgToken').value || null,
+        TELEGRAM_DEFAULT_CHAT_ID: document.getElementById('cfgTgChat').value.trim() || null,
+        WEBHOOK_DEFAULT_URL: document.getElementById('cfgWebhookUrl').value.trim() || null,
+        SCHEDULER_INTERVAL: document.getElementById('cfgScheduler').value
+      };
+
+      try {
+        const res = await fetch('/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          showAlert("Konfigurasi server berhasil disimpan dan scheduler diperbarui!", "success");
+          loadSettings();
+        } else {
+          showAlert(data.error || "Gagal menyimpan konfigurasi.", "error");
+        }
+      } catch (err) {
+        console.error(err);
+        showAlert("Koneksi gagal saat menyimpan setelan.", "error");
       }
     }
 
@@ -719,7 +1064,7 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
             <td colspan="5">
               <div class="empty-state">
                 <i data-lucide="inbox" class="empty-icon"></i>
-                <p>No books are matching or registered for tracking yet.</p>
+                <p>Tidak ada buku dalam pelacakan.</p>
               </div>
             </td>
           </tr>
@@ -770,10 +1115,7 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
     async function handleAddBook(e) {
       e.preventDefault();
       const apiKey = getApiKey();
-      if (!apiKey) {
-        showAlert("Please enter your API Key first.", "error");
-        return;
-      }
+      if (!apiKey) return;
 
       const btnSubmit = document.getElementById('btnSubmit');
       btnSubmit.disabled = true;
@@ -799,7 +1141,7 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
 
         const data = await res.json();
         if (data.success) {
-          showAlert("Book successfully registered for ISBN tracking!", "success");
+          showAlert("Buku berhasil didaftarkan untuk dilacak!", "success");
           document.getElementById('addBookForm').reset();
           
           // Collapse advanced settings if open
@@ -808,11 +1150,11 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
           
           loadBooks();
         } else {
-          showAlert(data.error || "Failed to register book.", "error");
+          showAlert(data.error || "Gagal mendaftarkan buku.", "error");
         }
       } catch (err) {
         console.error(err);
-        showAlert("Failed to connect to the server.", "error");
+        showAlert("Gagal menghubungkan ke server.", "error");
       } finally {
         btnSubmit.disabled = false;
       }
@@ -821,10 +1163,7 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
     // Trigger manual check
     async function handleManualCheck() {
       const apiKey = getApiKey();
-      if (!apiKey) {
-        showAlert("Please enter your API Key first.", "error");
-        return;
-      }
+      if (!apiKey) return;
 
       const btnCheck = document.getElementById('btnCheckNow');
       const checkIcon = document.getElementById('checkIcon');
@@ -843,14 +1182,14 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
         if (data.success) {
           const checked = data.checked || 0;
           const found = data.found || 0;
-          showAlert(\`Checked \${checked} PENDING books. Found \${found} published ISBN(s)!\`, "success");
+          showAlert(\`Pengecekan selesai. Memeriksa \${checked} buku, ditemukan \${found} nomor ISBN baru!\`, "success");
           loadBooks();
         } else {
-          showAlert(data.error || "Failed to run tracking check.", "error");
+          showAlert(data.error || "Gagal memproses pemeriksaan ISBN.", "error");
         }
       } catch (err) {
         console.error(err);
-        showAlert("Connection error while running check.", "error");
+        showAlert("Terjadi kesalahan koneksi saat pengecekan.", "error");
       } finally {
         btnCheck.disabled = false;
         checkIcon.classList.remove('spinner');
@@ -859,15 +1198,12 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
 
     // Delete book from tracking
     async function handleDeleteBook(id) {
-      if (!confirm("Are you sure you want to stop tracking and delete this book?")) {
+      if (!confirm("Apakah Anda yakin ingin berhenti melacak dan menghapus data buku ini?")) {
         return;
       }
 
       const apiKey = getApiKey();
-      if (!apiKey) {
-        showAlert("Please enter your API Key first.", "error");
-        return;
-      }
+      if (!apiKey) return;
 
       try {
         const res = await fetch(\`/books/\${id}\`, {
@@ -879,14 +1215,14 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
 
         const data = await res.json();
         if (data.success) {
-          showAlert("Book successfully deleted from tracking.", "success");
+          showAlert("Buku berhasil dihapus dari daftar pelacakan.", "success");
           loadBooks();
         } else {
-          showAlert(data.error || "Failed to delete book.", "error");
+          showAlert(data.error || "Gagal menghapus buku.", "error");
         }
       } catch (err) {
         console.error(err);
-        showAlert("Connection error while deleting book.", "error");
+        showAlert("Terjadi kesalahan koneksi saat menghapus buku.", "error");
       }
     }
 
@@ -903,7 +1239,7 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
       div.innerHTML = \`
         <i data-lucide="\${icon}" style="width: 1.25rem; height: 1.25rem; flex-shrink: 0;"></i>
         <span>\${escapeHtml(message)}</span>
-        <button class="alert-close" onclick="closeAlert('\${alertId}')">
+        <button type="button" class="alert-close" onclick="closeAlert('\${alertId}')" aria-label="Tutup notifikasi">
           <i data-lucide="x" style="width: 1rem; height: 1rem;"></i>
         </button>
       \`;
@@ -937,9 +1273,6 @@ export const renderUI = (defaultPort: number) => `<!DOCTYPE html>
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
     }
-
-    // Initial load on script load
-    loadBooks();
   </script>
 </body>
 </html>

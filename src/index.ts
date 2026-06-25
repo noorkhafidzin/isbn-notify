@@ -3,25 +3,31 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { db } from './db';
 import { renderUI } from './ui';
+import { getMergedSettings, writeSettings, getRawSettings } from './settings';
+import { startScheduler, updateScheduler } from './scheduler';
 import { Env, Book } from './types';
 import { dispatchNotifications } from './notifications';
 
 const app = new Hono();
 
-// Helper to get environment variables
-const getEnv = (): Env => ({
-  API_KEY: process.env.API_KEY || '',
-  TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
-  TELEGRAM_DEFAULT_CHAT_ID: process.env.TELEGRAM_DEFAULT_CHAT_ID,
-  NTFY_DEFAULT_TOPIC: process.env.NTFY_DEFAULT_TOPIC,
-  NTFY_DEFAULT_URL: process.env.NTFY_DEFAULT_URL,
-  NTFY_AUTH_TOKEN: process.env.NTFY_AUTH_TOKEN,
-  WEBHOOK_DEFAULT_URL: process.env.WEBHOOK_DEFAULT_URL,
-});
+// Helper to get environment variables merging process.env and settings.json
+const getEnv = (): Env => {
+  const settings = getMergedSettings();
+  return {
+    API_KEY: process.env.API_KEY || '',
+    TELEGRAM_BOT_TOKEN: settings.TELEGRAM_BOT_TOKEN || undefined,
+    TELEGRAM_DEFAULT_CHAT_ID: settings.TELEGRAM_DEFAULT_CHAT_ID || undefined,
+    NTFY_DEFAULT_TOPIC: settings.NTFY_DEFAULT_TOPIC || undefined,
+    NTFY_DEFAULT_URL: settings.NTFY_DEFAULT_URL || undefined,
+    NTFY_AUTH_TOKEN: settings.NTFY_AUTH_TOKEN || undefined,
+    WEBHOOK_DEFAULT_URL: settings.WEBHOOK_DEFAULT_URL || undefined,
+  };
+};
 
-// Security Middleware: Validate API Key (except root page UI)
+// Security Middleware: Validate API Key (except root page UI and /verify route)
 app.use('*', async (c, next) => {
-  if (c.req.path === '/' || c.req.path === '/index.html') {
+  const path = c.req.path;
+  if (path === '/' || path === '/index.html' || path === '/verify') {
     return await next();
   }
 
@@ -118,6 +124,69 @@ app.post('/check', async (c) => {
     const env = getEnv();
     const trackingResults = await checkIsbns(env);
     return c.json({ success: true, ...trackingResults });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// REST API: Verify Password Overlay
+app.post('/verify', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { password } = body;
+    const apiKey = process.env.API_KEY || '';
+    
+    if (password === apiKey) {
+      return c.json({ success: true, message: 'Password verified successfully.' });
+    } else {
+      return c.json({ success: false, error: 'Invalid password.' }, 401);
+    }
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// REST API: Get current global configuration settings
+app.get('/settings', (c) => {
+  try {
+    const raw = getRawSettings();
+    // Mask sensitive configurations
+    const maskedSettings = {
+      ...raw,
+      TELEGRAM_BOT_TOKEN: raw.TELEGRAM_BOT_TOKEN ? '••••••••••••••••' : '',
+      NTFY_AUTH_TOKEN: raw.NTFY_AUTH_TOKEN ? '••••••••••••••••' : '',
+    };
+    return c.json({ success: true, settings: maskedSettings });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// REST API: Update global configuration settings
+app.post('/settings', async (c) => {
+  try {
+    const body = await c.req.json();
+    const existing = getRawSettings();
+    
+    const newSettings = {
+      TELEGRAM_BOT_TOKEN: body.TELEGRAM_BOT_TOKEN === '••••••••••••••••' ? existing.TELEGRAM_BOT_TOKEN : body.TELEGRAM_BOT_TOKEN,
+      TELEGRAM_DEFAULT_CHAT_ID: body.TELEGRAM_DEFAULT_CHAT_ID,
+      NTFY_DEFAULT_TOPIC: body.NTFY_DEFAULT_TOPIC,
+      NTFY_DEFAULT_URL: body.NTFY_DEFAULT_URL,
+      NTFY_AUTH_TOKEN: body.NTFY_AUTH_TOKEN === '••••••••••••••••' ? existing.NTFY_AUTH_TOKEN : body.NTFY_AUTH_TOKEN,
+      WEBHOOK_DEFAULT_URL: body.WEBHOOK_DEFAULT_URL,
+      SCHEDULER_INTERVAL: body.SCHEDULER_INTERVAL,
+    };
+    
+    writeSettings(newSettings);
+    
+    // Update the background scheduler interval
+    updateScheduler(newSettings.SCHEDULER_INTERVAL || '3x-daily', async () => {
+      console.log('[Scheduler] Automatically checking ISBNs...');
+      await checkIsbns(getEnv());
+    });
+    
+    return c.json({ success: true, message: 'Settings saved and scheduler updated successfully.' });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }
@@ -227,6 +296,13 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
 
   return { checked, found, details };
 }
+
+// Start background scheduler on boot
+const settings = getMergedSettings();
+startScheduler(settings.SCHEDULER_INTERVAL || '3x-daily', async () => {
+  console.log('[Scheduler] Automatically checking ISBNs...');
+  await checkIsbns(getEnv());
+});
 
 // Start Node server
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8787;

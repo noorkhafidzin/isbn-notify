@@ -27,6 +27,8 @@ data/
 # Local Database
 books.json
 books.json.tmp
+settings.json
+settings.json.tmp
 
 # Local testing scripts
 test.js
