@@ -149,12 +149,12 @@ app.post('/verify', async (c) => {
 // REST API: Get current global configuration settings
 app.get('/settings', (c) => {
   try {
-    const raw = getRawSettings();
+    const merged = getMergedSettings();
     // Mask sensitive configurations
     const maskedSettings = {
-      ...raw,
-      TELEGRAM_BOT_TOKEN: raw.TELEGRAM_BOT_TOKEN ? '••••••••••••••••' : '',
-      NTFY_AUTH_TOKEN: raw.NTFY_AUTH_TOKEN ? '••••••••••••••••' : '',
+      ...merged,
+      TELEGRAM_BOT_TOKEN: merged.TELEGRAM_BOT_TOKEN ? '••••••••••••••••' : '',
+      NTFY_AUTH_TOKEN: merged.NTFY_AUTH_TOKEN ? '••••••••••••••••' : '',
     };
     return c.json({ success: true, settings: maskedSettings });
   } catch (error: any) {
