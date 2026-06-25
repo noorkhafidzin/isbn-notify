@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Book } from './types';
+import { Book } from './types.js';
 
 const DB_FILE = process.env.DB_PATH 
   ? path.resolve(process.env.DB_PATH) 

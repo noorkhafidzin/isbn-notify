@@ -1,4 +1,4 @@
-import { Book, Env } from './types';
+import { Book, Env } from './types.js';
 
 /**
  * Sends a notification via Telegram Bot API

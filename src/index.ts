@@ -2,12 +2,12 @@ import 'dotenv/config';
 import { timingSafeEqual } from 'crypto';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
-import { db } from './db';
-import { renderUI } from './ui';
-import { getMergedSettings, writeSettings, getRawSettings } from './settings';
-import { startScheduler, updateScheduler } from './scheduler';
-import { Env, Book } from './types';
-import { dispatchNotifications } from './notifications';
+import { db } from './db.js';
+import { renderUI } from './ui.js';
+import { getMergedSettings, writeSettings, getRawSettings } from './settings.js';
+import { startScheduler, updateScheduler } from './scheduler.js';
+import { Env, Book } from './types.js';
+import { dispatchNotifications } from './notifications.js';
 
 const app = new Hono();
 
