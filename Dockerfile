@@ -19,6 +19,9 @@ RUN npm ci --omit=dev
 
 # Copy compiled files from builder
 COPY --from=builder /app/dist ./dist
+# Copy raw static assets required at runtime
+COPY --from=builder /app/src/ui.css ./src/ui.css
+COPY --from=builder /app/src/ui.js ./src/ui.js
 
 # Run as non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
