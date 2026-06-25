@@ -144,18 +144,22 @@ Memicu pelacakan otomatis ke database Perpusnas secara instan tanpa perlu menung
 Ikuti langkah-langkah di bawah ini untuk menjalankan sistem di home server Linux secara terus-menerus (production):
 
 ### Metode A: Menggunakan Docker & Docker Compose (Rekomendasi)
-Docker sangat disarankan karena mengisolasi aplikasi dan mempermudah pemeliharaan serta pembaruan.
+Docker sangat disarankan karena mengisolasi aplikasi dan mempermudah pemeliharaan serta pembaruan. Anda tidak perlu mem-build dari awal karena sudah tersedia *pre-built image* di GHCR (GitHub Container Registry).
 
-1. Salin `docker-compose.yml.example` menjadi `docker-compose.yml`:
+1. Anda dapat menarik (pull) image terbaru yang stabil dengan perintah:
+   ```bash
+   docker pull ghcr.io/noorkhafidzin/isbn-notify:latest
+   ```
+2. Salin `docker-compose.yml.example` menjadi `docker-compose.yml`:
    ```bash
    cp docker-compose.yml.example docker-compose.yml
    ```
-2. Sesuaikan konfigurasi token dan `API_KEY` di dalam `docker-compose.yml` pada bagian `environment`.
-3. Jalankan container di latar belakang:
+3. Sesuaikan konfigurasi token dan `API_KEY` di dalam `docker-compose.yml` pada bagian `environment`.
+4. Jalankan container di latar belakang:
    ```bash
    docker compose up -d
    ```
-4. Database akan disimpan secara persisten di folder lokal `./data/books.json`.
+5. Database akan disimpan secara persisten di folder lokal `./data/books.json`.
 
 ### Metode B: Menggunakan PM2 (Node.js Tradisional)
 Jika Anda lebih memilih menjalankan aplikasi secara tradisional tanpa Docker:

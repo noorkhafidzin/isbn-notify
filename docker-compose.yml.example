@@ -2,11 +2,11 @@ version: '3.8'
 
 services:
   isbn-notify:
-    # Build locally or pull the published image from GitHub Container Registry (GHCR)
-    # image: ghcr.io/<username>/isbn-notify:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Pull the published image from GitHub Container Registry (GHCR)
+    image: ghcr.io/noorkhafidzin/isbn-notify:latest
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     container_name: isbn-notify
     ports:
       - "8787:8787"
