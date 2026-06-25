@@ -19,17 +19,24 @@ RUN npm ci --omit=dev
 
 # Copy compiled files from builder
 COPY --from=builder /app/dist ./dist
+
+# Install su-exec for dropping privileges in entrypoint
+RUN apk add --no-cache su-exec
+
 # Copy raw static assets required at runtime
 COPY --from=builder /app/src/ui.css ./src/ui.css
 COPY --from=builder /app/src/ui.js ./src/ui.js
 
-# Run as non-root user for security
+# Create non-root user and set permissions for /app
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
-    && mkdir -p /app/data \
     && chown -R appuser:appgroup /app
-USER appuser
+
+# Copy entrypoint script
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
 
 EXPOSE 8787
 
-# Run the app
+# Entrypoint will fix volume permissions and drop to appuser
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["node", "dist/index.js"]
