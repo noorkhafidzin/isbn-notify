@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { timingSafeEqual } from 'crypto';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import { db } from './db';
@@ -9,6 +10,32 @@ import { Env, Book } from './types';
 import { dispatchNotifications } from './notifications';
 
 const app = new Hono();
+
+// Constant-time string comparison to prevent timing attacks
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
+// In-memory rate limiter for login attempts
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    loginAttempts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX;
+}
 
 // Helper to get environment variables merging process.env and settings.json
 const getEnv = (): Env => {
@@ -24,6 +51,14 @@ const getEnv = (): Env => {
   };
 };
 
+// Security Headers Middleware
+app.use('*', async (c, next) => {
+  await next();
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+});
+
 // Security Middleware: Validate API Key (except root page UI and /verify route)
 app.use('*', async (c, next) => {
   const path = c.req.path;
@@ -38,7 +73,7 @@ app.use('*', async (c, next) => {
   }
   
   const requestKey = c.req.header('X-API-Key');
-  if (requestKey !== apiKey) {
+  if (!requestKey || !safeCompare(requestKey, apiKey)) {
     return c.json({ error: 'Unauthorized. Invalid or missing X-API-Key header.' }, 401);
   }
   
@@ -54,13 +89,13 @@ app.get('/', (c) => {
 app.get('/ui.css', async (c) => {
   const { readFileSync } = await import('fs');
   const css = readFileSync('./src/ui.css', 'utf-8');
-  return c.text(css, 200, { 'Content-Type': 'text/css' });
+  return c.text(css, 200, { 'Content-Type': 'text/css', 'Cache-Control': 'public, max-age=3600' });
 });
 
 app.get('/ui.js', async (c) => {
   const { readFileSync } = await import('fs');
   const js = readFileSync('./src/ui.js', 'utf-8');
-  return c.text(js, 200, { 'Content-Type': 'application/javascript' });
+  return c.text(js, 200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=3600' });
 });
 
 // REST API: Get all tracked books
@@ -185,14 +220,19 @@ app.post('/check', async (c) => {
   }
 });
 
-// REST API: Verify Password Overlay
+// REST API: Verify Password Overlay (rate-limited, timing-safe)
 app.post('/verify', async (c) => {
   try {
+    const clientIp = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
+    if (isRateLimited(clientIp)) {
+      return c.json({ success: false, error: 'Too many login attempts. Please try again later.' }, 429);
+    }
+
     const body = await c.req.json();
     const { password } = body;
     const apiKey = process.env.API_KEY || '';
     
-    if (password === apiKey) {
+    if (apiKey && typeof password === 'string' && safeCompare(password, apiKey)) {
       return c.json({ success: true, message: 'Password verified successfully.' });
     } else {
       return c.json({ success: false, error: 'Invalid password.' }, 401);
@@ -265,7 +305,6 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
     let hasFoundIsbn = false;
     let foundIsbnStr = '';
     let foundOfficialTitle = '';
-    let errorMsg = null;
 
     try {
       console.log(`Checking ISBN for title: "${book.title}"`);
@@ -348,8 +387,7 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
 
     } catch (err: any) {
       console.error(`Error checking book "${book.title}":`, err);
-      errorMsg = err.message || String(err);
-      details.push({ id: book.id, title: book.title, status: 'ERROR', error: errorMsg });
+      details.push({ id: book.id, title: book.title, status: 'ERROR', error: err.message || String(err) });
     }
   }
 

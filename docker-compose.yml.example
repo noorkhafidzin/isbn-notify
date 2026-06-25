@@ -13,7 +13,7 @@ services:
     volumes:
       - ./data:/app/data
     environment:
-      - API_KEY=isbn-ntfy-keysec-678
+      - API_KEY=your_secret_api_key_here
       - PORT=8787
       
       # Optional Notification Settings

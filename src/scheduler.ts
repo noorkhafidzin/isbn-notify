@@ -1,5 +1,4 @@
 let activeTimer: NodeJS.Timeout | null = null;
-let activeInterval: NodeJS.Timeout | null = null;
 
 // Adjust target date to skip weekends (Saturday & Sunday -> Monday)
 function adjustForWorkdays(targetDate: Date): void {
@@ -39,15 +38,11 @@ function getNextCustomDelay(hours: number[]): number {
   return targetDate.getTime() - now.getTime();
 }
 
-// Clear any existing active timer or interval
+// Clear any existing active timer
 export function clearScheduler(): void {
   if (activeTimer) {
     clearTimeout(activeTimer);
     activeTimer = null;
-  }
-  if (activeInterval) {
-    clearInterval(activeInterval);
-    activeInterval = null;
   }
 }
 

@@ -1,11 +1,8 @@
 # Dependencies
 node_modules/
 
-# Environment variables and configurations
+# Environment variables
 .env
-.dev.vars
-wrangler.toml
-.wrangler/
 
 # Build output (if compiled explicitly)
 dist/

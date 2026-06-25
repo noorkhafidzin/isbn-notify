@@ -1,5 +1,4 @@
 let booksData = [];
-let currentTab = 'tracking';
 
 // ---- Helpers ----
 
@@ -134,7 +133,6 @@ function handleLogout() {
 // ---- Tab Switching ----
 
 function switchTab(tabId) {
-  currentTab = tabId;
   const isTracking = tabId === 'tracking';
   document.getElementById('tabContentTracking').style.display = isTracking ? 'grid' : 'none';
   document.getElementById('tabContentSettings').style.display = isTracking ? 'none' : 'grid';
