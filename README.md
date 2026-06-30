@@ -9,7 +9,8 @@ Sistem ini memantau ketersediaan nomor ISBN secara periodik di database pencaria
 ## ✨ Fitur Utama
 - 🚀 **Bebas WAF**: Menggunakan IP perumahan Anda sendiri, aman dari blokir firewall Perpusnas.
 - 🔔 **Multi-Notifikasi**: Dukungan bawaan untuk Telegram, ntfy.sh, dan custom Webhook.
-- 🕒 **Smart Scheduler**: Penjadwalan otomatis internal yang cerdas, otomatis melewati hari libur (Sabtu & Minggu).
+- 🕒 **Smart Scheduler**: Penjadwalan otomatis internal yang cerdas, bebas pilih jam-jam spesifik, otomatis melewati hari libur (Sabtu & Minggu).
+- 📅 **Pelacakan Tanggal**: Catat tanggal pengajuan dan tanggal terbit ISBN secara otomatis/manual, lengkap dengan analisis rata-rata waktu terbit.
 - 🐳 **Docker Ready**: Sangat mudah di-deploy ke server menggunakan Docker Compose.
 - 🔒 **Aman**: Dilengkapi proteksi rate-limiting, timing-attack prevention, dan Docker non-root user.
 
@@ -26,7 +27,11 @@ Cara termudah dan paling direkomendasikan untuk menginstal **isbn-notify** adala
    mkdir isbn-notify && cd isbn-notify
    ```
 
-2. Buat file `docker-compose.yml` dan *copy-paste* konfigurasi berikut:
+2. Unduh file contoh konfigurasi lalu ganti namanya:
+   ```bash
+   curl -o docker-compose.yml https://raw.githubusercontent.com/noorkhafidzin/isbn-notify/main/docker-compose.yml.example
+   ```
+   Atau buat file `docker-compose.yml` baru dan *copy-paste* konfigurasi berikut:
    ```yaml
    services:
      isbn-notify:
@@ -37,6 +42,7 @@ Cara termudah dan paling direkomendasikan untuk menginstal **isbn-notify** adala
        volumes:
          - ./data:/app/data
        environment:
+         - TZ=Asia/Jakarta
          - API_KEY=ganti_dengan_password_rahasia_anda
          - PORT=8787
          
@@ -75,13 +81,14 @@ Jika Anda ingin menjalankan aplikasi secara tradisional (tanpa Docker) atau untu
    ```bash
    cp .env.example .env
    ```
+   > ⚠️ **Penting:** `API_KEY` **wajib** diisi. Konfigurasi notifikasi (Telegram, ntfy, dll.) bersifat opsional dan bisa juga diatur lewat Settings di Dashboard.
 
 3. Jalankan server:
    - **Mode Development** (dengan hot-reload): `npm run dev`
-   - **Mode Production** (dengan PM2):
+   - **Mode Production** (tanpa Docker, dengan PM2):
      ```bash
      npm run build
-     pm2 start dist/index.js --name "isbn-notify"
+     pm2 start npm --name "isbn-notify" -- start
      ```
 
 ---
@@ -91,10 +98,10 @@ Jika Anda ingin menjalankan aplikasi secara tradisional (tanpa Docker) atau untu
 Sistem ini memiliki **Internal Background Scheduler** yang berjalan langsung di dalam aplikasi. Anda **tidak perlu lagi** mengkonfigurasi utilitas Linux Crontab secara manual.
 
 1. Buka dashboard di browser, lalu buka tab **Settings & Scheduler**.
-2. Pada bagian **Background Scheduler**, pilih interval atau jam-jam spesifik pemicuan otomatis pelacakan ISBN.
-   - **Pilih Jam Kustom:** Memungkinkan Anda mencentang jam-jam tertentu (misal: `09:00`, `13:00`, dan `17:00`).
-   - **Lewati Akhir Pekan:** Penjadwal secara cerdas akan melewati hari Sabtu & Minggu (hanya berjalan Senin-Jumat) demi menyelaraskan dengan jam kerja operasional Perpusnas.
-3. **Peringatan:** Demi keselamatan IP Anda dari blokir WAF Perpusnas, hindari memilih terlalu banyak jam dalam sehari (disarankan maksimal 3-4 kali sehari).
+2. Pada bagian **Background Scheduler**, centang jam-jam spesifik yang Anda inginkan untuk pengecekan otomatis (misal: `09:00`, `13:00`, `17:00`).
+   - Jika tidak ada jam yang dipilih, scheduler dalam kondisi **nonaktif**.
+   - Scheduler berjalan **setiap hari** sesuai jam yang dipilih.
+3. **⚠️ Peringatan:** Demi keselamatan IP Anda dari blokir WAF Perpusnas, hindari memilih lebih dari 4 kali dalam sehari. Sistem akan menampilkan peringatan jika Anda memilih lebih dari 4 kali.
 
 ---
 
@@ -105,25 +112,55 @@ Semua request wajib menyertakan header keamanan `X-API-Key` sesuai nilai `API_KE
 | Method | Endpoint | Deskripsi |
 |---|---|---|
 | `GET` | `/books` | Melihat daftar buku yang dilacak beserta statusnya. |
-| `POST` | `/books` | Mendaftarkan buku baru (`title`, `publisher`, `author`). |
-| `PUT` | `/books/:id` | Mengupdate properti buku (status, nomor ISBN, manual override notifikasi). |
+| `POST` | `/books` | Mendaftarkan buku baru untuk dilacak. |
+| `PUT` | `/books/:id` | Mengupdate properti buku (judul, penulis, penerbit, status, ISBN, tanggal, dll.). |
 | `DELETE`| `/books/:id` | Menghapus buku dari database pelacakan. |
+| `GET` | `/settings` | Melihat konfigurasi global (notifikasi & scheduler). |
+| `POST` | `/settings` | Menyimpan konfigurasi global (notifikasi & scheduler). |
 | `POST` | `/check` | Memicu pengecekan instan ke Perpusnas tanpa menunggu jadwal. |
+| `POST` | `/verify` | Verifikasi password login (rate-limited, timing-safe). |
 
-Contoh menambahkan buku (cURL):
+### Contoh: Menambahkan buku (cURL)
 ```bash
 curl -X POST http://localhost:8787/books \
   -H "Content-Type: application/json" \
   -H "X-API-Key: rahasia123" \
-  -d '{"title":"Laskar Pelangi","publisher":"Bentang Pustaka","author":"Andrea Hirata"}'
+  -d '{
+    "title": "Laskar Pelangi",
+    "publisher": "Bentang Pustaka",
+    "author": "Andrea Hirata",
+    "submission_date": "2025-01-15"
+  }'
 ```
+
+### Contoh: Mengupdate tanggal terbit ISBN secara manual (cURL)
+```bash
+curl -X PUT http://localhost:8787/books/1 \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: rahasia123" \
+  -d '{
+    "isbn_published_date": "2025-03-20"
+  }'
+```
+
+---
+
+## 📊 Analisis Waktu Terbit
+
+Dashboard menyediakan widget **Analisis Waktu Terbit** yang menghitung rata-rata durasi dari tanggal pengajuan hingga tanggal terbit ISBN. Filter rentang waktu tersedia (1 bulan, 2 bulan, 3 bulan, atau rentang kustom) agar analisis lebih relevan.
 
 ---
 
 ## 🧪 Uji Coba Notifikasi
 
-Anda dapat melakukan pengetesan integrasi notifikasi (Telegram/ntfy/Webhook) menggunakan skrip uji coba:
+Anda dapat menguji integrasi notifikasi (Telegram/ntfy/Webhook) langsung dari Dashboard:
+
+1. Buka tab **Settings & Scheduler**.
+2. Isi konfigurasi notifikasi yang ingin diuji.
+3. Simpan, lalu klik tombol **Cek Sekarang** untuk memicu pengecekan manual dan melihat apakah notifikasi terkirim.
+
+Atau gunakan API endpoint `/check` secara langsung:
 ```bash
-node test_success.js
+curl -X POST http://localhost:8787/check \
+  -H "X-API-Key: rahasia123"
 ```
-Skrip ini akan menyimulasikan penemuan ISBN untuk buku contoh dan mengirimkan notifikasi uji coba ke channel Anda.
