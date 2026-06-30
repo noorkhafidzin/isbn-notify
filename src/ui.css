@@ -577,6 +577,11 @@ tr:hover td {
   transition: opacity 300ms ease;
 }
 
+/* Edit modal hidden by default — ID selector overrides .login-overlay class */
+#editBookModal {
+  display: none;
+}
+
 
 /* Hour Pill Checkboxes */
 .hour-pill-label {
