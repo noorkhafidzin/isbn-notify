@@ -10,6 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  IMAGE_NAME: noorkhafidzin/isbn-notify
 
 jobs:
   build-and-push:
