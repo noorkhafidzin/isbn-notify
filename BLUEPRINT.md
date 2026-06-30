@@ -1,7 +1,7 @@
 # Blueprint — isbn-notify
 
-- **Version:** v1.0.0
-- **Last Updated:** 2026-06-25
+- **Version:** v1.1.0
+- **Last Updated:** 2026-06-30
 - **Tech Stack:** Node.js, Hono, JSON Database (books.json), TypeScript
 
 ---
@@ -103,12 +103,16 @@ Sistem ini mendukung konfigurasi dinamis yang dapat disesuaikan langsung dari ha
 ### Penjadwal Latar Belakang Internal Node.js:
 Penjadwal latar belakang otomatis dijalankan langsung di memori server Node.js menggunakan pemicu waktu lokal sistem operasi server. Terdapat beberapa mode interval:
 - **`disabled`**: Menonaktifkan pengecekan otomatis (pengecekan hanya berjalan manual).
-- **`custom`**: Melakukan pengecekan otomatis pada jam-jam spesifik (misalnya pukul `09:00`, `13:00`, dan `17:00`) yang dipilih secara bebas dari antarmuka Web UI.
+- **`custom`**: Melakukan pengecekan otomatis pada waktu-waktu spesifik dalam format `HH:MM` (misalnya `"09:00"`, `"13:00"`, dan `"17:00"`) yang dipilih secara bebas dari antarmuka Web UI menggunakan native time picker.
+
+### Format Waktu Jadwal (v1.1.0+):
+`SCHEDULER_HOURS` kini menyimpan `string[]` format `HH:MM`, memungkinkan presisi hingga menit. Format lama `number[]` (misal `[9, 13, 17]`) otomatis dikonversi via fungsi `normalizeHours()` di `settings.ts` untuk memastikan backward-compatibility.
 
 ### Fitur Kustomisasi Jadwal & Pencegahan Blokir WAF:
-1. **Weekend Skip:** Pada mode kustom (`custom`), penjadwal secara otomatis melewatkan hari Sabtu dan Minggu (pengecekan hanya akan dijadwalkan ulang pada hari kerja Senin-Jumat) untuk menyelaraskan dengan jam operasional server Perpustakaan Nasional.
+1. **Berjalan Setiap Hari (v1.1.0+):** Weekend skip dihapus; scheduler kini berjalan setiap hari termasuk Sabtu dan Minggu. Kalkulasi delay menggunakan objek `Date` penuh untuk akurasi perbandingan waktu.
 2. **Dynamic Rescheduling:** Setiap kali pengaturan di-save via Web UI, timer aktif lama akan dibersihkan (`clearTimeout`/`clearInterval`) dan penjadwal baru akan dihitung serta dijadwalkan ulang secara real-time.
-3. **Firewall WAF Warning:** Karena server Perpusnas menerapkan Web Application Firewall (WAF) yang ketat, Web UI akan memicu peringatan dinamis jika pengguna mengaktifkan lebih dari 4 jam pemeriksaan dalam sehari, mendidik pengguna agar menghindari risiko pemblokiran IP.
+3. **Firewall WAF Warning:** Karena server Perpusnas menerapkan Web Application Firewall (WAF) yang ketat, Web UI akan memicu peringatan dinamis jika pengguna menambahkan lebih dari 4 entri jadwal dalam sehari, mendidik pengguna agar menghindari risiko pemblokiran IP.
+4. **AbortController Timeout:** Setiap request ke API Perpusnas memiliki batas waktu 15 detik untuk mencegah scheduler menggantung jika API eksternal tidak merespons.
 
 ---
 
@@ -117,6 +121,16 @@ Penjadwal latar belakang otomatis dijalankan langsung di memori server Node.js m
 Aplikasi ini menggunakan Single Page App (SPA) dashboard yang dilindungi oleh **Login Overlay**. 
 - Ketika pengguna pertama kali mengakses halaman root `/`, dashboard penuh dikunci sampai password verifikasi yang dimasukkan cocok dengan nilai `API_KEY` (melalui endpoint `POST /verify`).
 - Kunci API (`X-API-Key`) disimpan secara aman di `localStorage` browser klien dan dilampirkan sebagai header autentikasi pada setiap transaksi REST API.
+- **Auto-login** menggunakan endpoint `GET /books` (bukan `/verify`) untuk menghindari konsumsi rate limiter yang tidak perlu saat validasi sesi tersimpan.
+
+### Security Headers (v1.1.0+):
+- **Content-Security-Policy**: Diterapkan pada semua respons HTTP untuk mencegah XSS dan injeksi konten tidak terpercaya.
+- **Strict-Transport-Security**: Memaksa koneksi HTTPS pada browser yang mendukung HSTS.
+- **Cache-Control: no-cache** pada root route `/` mencegah reverse proxy menyajikan HTML versi lama setelah pembaruan container.
+
+### Keamanan Notifikasi (v1.1.0+):
+- **XSS Prevention di Telegram**: Seluruh konten pesan disanitasi via fungsi `escapeHtml()` sebelum dikirim ke Telegram API.
+- **Graceful Shutdown**: Handler `SIGTERM`/`SIGINT` memastikan scheduler dan koneksi bersih saat container dihentikan oleh orchestrator Docker.
 
 ---
 
