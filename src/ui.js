@@ -594,4 +594,9 @@ function closeAlert(id) {
 
 // ---- Init ----
 
-document.addEventListener('DOMContentLoaded', tryAutoLogin);
+document.addEventListener('DOMContentLoaded', () => {
+  // Safety: ensure edit modal starts hidden
+  const modal = document.getElementById('editBookModal');
+  if (modal) modal.style.display = 'none';
+  tryAutoLogin();
+});
