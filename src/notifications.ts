@@ -166,16 +166,25 @@ export async function dispatchNotifications(
     webhook: false,
   };
 
+  console.log(`[Notifications] Dispatching for book "${book.title}" (ISBN: ${isbn})`);
+  console.log(`[Notifications] env.NTFY_DEFAULT_TOPIC: ${env.NTFY_DEFAULT_TOPIC}`);
+  console.log(`[Notifications] env.NTFY_DEFAULT_URL: ${env.NTFY_DEFAULT_URL}`);
+  console.log(`[Notifications] env.NTFY_AUTH_TOKEN: ${env.NTFY_AUTH_TOKEN ? '***' : 'undefined'}`);
+
   // 1. Telegram
   const tgToken = env.TELEGRAM_BOT_TOKEN;
   const tgChatId = book.tg_chat_id || env.TELEGRAM_DEFAULT_CHAT_ID;
   if (tgToken && tgChatId) {
+    console.log(`[Notifications] Sending Telegram to ${tgChatId}...`);
     results.telegram = await sendTelegramNotification(tgToken, tgChatId, book, officialTitle, isbn);
+  } else {
+    console.log(`[Notifications] Skipping Telegram: token=${!!tgToken}, chatId=${!!tgChatId}`);
   }
 
   // 2. ntfy.sh
   const ntfyTopic = book.ntfy_topic || env.NTFY_DEFAULT_TOPIC;
   if (ntfyTopic) {
+    console.log(`[Notifications] Sending ntfy to topic "${ntfyTopic}" at ${env.NTFY_DEFAULT_URL}...`);
     results.ntfy = await sendNtfyNotification(
       ntfyTopic,
       book,
@@ -184,14 +193,20 @@ export async function dispatchNotifications(
       env.NTFY_AUTH_TOKEN,
       env.NTFY_DEFAULT_URL
     );
+    console.log(`[Notifications] ntfy result: ${results.ntfy}`);
+  } else {
+    console.log(`[Notifications] Skipping ntfy: no topic configured`);
   }
 
   // 3. Webhook
   const webhookUrl = book.webhook_url || env.WEBHOOK_DEFAULT_URL;
   if (webhookUrl) {
+    console.log(`[Notifications] Sending Webhook to ${webhookUrl}...`);
     results.webhook = await sendWebhookNotification(webhookUrl, book, officialTitle, isbn);
+  } else {
+    console.log(`[Notifications] Skipping Webhook: no URL configured`);
   }
 
-  console.log(`Notification dispatch results for "${book.title}":`, results);
+  console.log(`[Notifications] Final results for "${book.title}":`, results);
   return results;
 }

@@ -46,7 +46,7 @@ const getEnv = (): Env => {
     TELEGRAM_DEFAULT_CHAT_ID: settings.TELEGRAM_DEFAULT_CHAT_ID || undefined,
     NTFY_DEFAULT_TOPIC: settings.NTFY_DEFAULT_TOPIC || undefined,
     NTFY_DEFAULT_URL: settings.NTFY_DEFAULT_URL || undefined,
-    NTFY_AUTH_TOKEN: settings.NTFY_AUTH_TOKEN || undefined,
+    NTFY_AUTH_TOKEN: settings.NTFY_AUTH_TOKEN || process.env.NTFY_AUTH_TOKEN || undefined,
     WEBHOOK_DEFAULT_URL: settings.WEBHOOK_DEFAULT_URL || undefined,
   };
 };
@@ -312,9 +312,10 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
       console.log(`Checking ISBN for title: "${book.title}"`);
       const searchUrl = `https://isbn.perpusnas.go.id/landing_page/serverside_search2?search=${encodeURIComponent(book.title)}&filter_by=title&start=0&length=10`;
       
+      // Add AbortController timeout to prevent scheduler hang
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout per book
+      
       const response = await fetch(searchUrl, {
         signal: controller.signal,
         headers: {
