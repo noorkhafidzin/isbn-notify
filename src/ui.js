@@ -115,6 +115,7 @@ async function tryAutoLogin() {
     loadBooks();
     loadSettings();
   } catch {}
+}
 
 function handleLogout() {
   if (!confirm('Apakah Anda yakin ingin logout?')) return;
