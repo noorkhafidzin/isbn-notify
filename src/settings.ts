@@ -9,7 +9,17 @@ export interface AppSettings {
   NTFY_AUTH_TOKEN?: string;
   WEBHOOK_DEFAULT_URL?: string;
   SCHEDULER_INTERVAL?: 'custom' | 'disabled';
-  SCHEDULER_HOURS?: number[];
+  SCHEDULER_HOURS?: string[] | number[];
+}
+
+function normalizeHours(hours: unknown): string[] {
+  if (!hours || !Array.isArray(hours) || hours.length === 0) {
+    return ['09:00', '13:00', '17:00'];
+  }
+  if (typeof hours[0] === 'number') {
+    return (hours as number[]).map(h => `${String(h).padStart(2, '0')}:00`);
+  }
+  return hours.map(String);
 }
 
 const DB_PATH = process.env.DB_PATH;
@@ -17,7 +27,6 @@ const SETTINGS_FILE = DB_PATH
   ? path.resolve(path.dirname(DB_PATH), 'settings.json')
   : path.resolve(process.cwd(), 'settings.json');
 
-// Read raw settings from settings.json
 export function getRawSettings(): AppSettings {
   if (!fs.existsSync(SETTINGS_FILE)) {
     return {};
@@ -31,11 +40,9 @@ export function getRawSettings(): AppSettings {
   }
 }
 
-// Write settings to settings.json atomically
 export function writeSettings(settings: AppSettings): void {
   const tempFile = `${SETTINGS_FILE}.tmp`;
   try {
-    // Basic validation of fields before writing
     const cleanSettings: AppSettings = {
       TELEGRAM_BOT_TOKEN: settings.TELEGRAM_BOT_TOKEN?.trim() || undefined,
       TELEGRAM_DEFAULT_CHAT_ID: settings.TELEGRAM_DEFAULT_CHAT_ID?.trim() || undefined,
@@ -44,7 +51,7 @@ export function writeSettings(settings: AppSettings): void {
       NTFY_AUTH_TOKEN: settings.NTFY_AUTH_TOKEN?.trim() || undefined,
       WEBHOOK_DEFAULT_URL: settings.WEBHOOK_DEFAULT_URL?.trim() || undefined,
       SCHEDULER_INTERVAL: settings.SCHEDULER_INTERVAL || 'custom',
-      SCHEDULER_HOURS: settings.SCHEDULER_HOURS || [9, 13, 17],
+      SCHEDULER_HOURS: normalizeHours(settings.SCHEDULER_HOURS),
     };
 
     fs.writeFileSync(tempFile, JSON.stringify(cleanSettings, null, 2), 'utf-8');
@@ -52,33 +59,31 @@ export function writeSettings(settings: AppSettings): void {
   } catch (error) {
     console.error('Error writing settings file:', error);
     if (fs.existsSync(tempFile)) {
-      try {
-        fs.unlinkSync(tempFile);
-      } catch (_) {}
+      try { fs.unlinkSync(tempFile); } catch {}
     }
     throw error;
   }
 }
 
-// Get merged configuration: settings.json takes priority, falls back to process.env
-export function getMergedSettings(): Required<AppSettings> {
+export function getMergedSettings(): Omit<Required<AppSettings>, 'SCHEDULER_HOURS'> & { SCHEDULER_HOURS: string[] } {
   const raw = getRawSettings();
 
-  // Legacy mappings for interval options
-  let interval = raw.SCHEDULER_INTERVAL || (process.env.SCHEDULER_INTERVAL as any) || 'custom';
-  let hours = raw.SCHEDULER_HOURS;
-
-  if (interval === '3x-daily' || interval === 'hourly') {
+  let interval: 'custom' | 'disabled' = 'custom';
+  const rawInterval = raw.SCHEDULER_INTERVAL || process.env.SCHEDULER_INTERVAL || 'custom';
+  if (rawInterval === '3x-daily' || rawInterval === 'hourly') {
     interval = 'custom';
-    hours = [9, 13, 17];
-  } else if (interval === 'daily') {
+  } else if (rawInterval === 'daily') {
     interval = 'custom';
-    hours = [9];
+  } else if (rawInterval === 'disabled') {
+    interval = 'disabled';
+  } else {
+    interval = 'custom';
   }
 
-  // Default custom hours to [9, 13, 17] if not configured
+  let hours: string[] | number[] | undefined = raw.SCHEDULER_HOURS;
+
   if (interval === 'custom' && (!hours || hours.length === 0)) {
-    hours = [9, 13, 17];
+    hours = ['09:00', '13:00', '17:00'];
   }
 
   return {
@@ -88,7 +93,7 @@ export function getMergedSettings(): Required<AppSettings> {
     NTFY_DEFAULT_URL: raw.NTFY_DEFAULT_URL || process.env.NTFY_DEFAULT_URL || 'https://ntfy.sh',
     NTFY_AUTH_TOKEN: raw.NTFY_AUTH_TOKEN || process.env.NTFY_AUTH_TOKEN || '',
     WEBHOOK_DEFAULT_URL: raw.WEBHOOK_DEFAULT_URL || process.env.WEBHOOK_DEFAULT_URL || '',
-    SCHEDULER_INTERVAL: interval as any,
-    SCHEDULER_HOURS: hours || [9, 13, 17],
+    SCHEDULER_INTERVAL: interval,
+    SCHEDULER_HOURS: normalizeHours(hours),
   };
 }
