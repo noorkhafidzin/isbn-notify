@@ -82,8 +82,9 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-// Serve Web UI Dashboard
+// Serve Web UI Dashboard (no-cache to prevent proxy caching stale HTML)
 app.get('/', (c) => {
+  c.header('Cache-Control', 'no-cache, no-store, must-revalidate');
   return c.html(renderUI());
 });
 
