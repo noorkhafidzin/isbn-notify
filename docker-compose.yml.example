@@ -12,6 +12,7 @@ services:
     volumes:
       - ./data:/app/data
     environment:
+      - TZ=Asia/Jakarta
       - API_KEY=your_secret_api_key_here
       - PORT=8787
       

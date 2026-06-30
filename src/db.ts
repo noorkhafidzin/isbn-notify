@@ -36,7 +36,7 @@ function writeDb(books: Book[]): void {
     if (fs.existsSync(tempFile)) {
       try {
         fs.unlinkSync(tempFile);
-      } catch (_) {}
+      } catch {}
     }
     throw error;
   }

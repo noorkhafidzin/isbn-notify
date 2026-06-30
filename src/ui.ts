@@ -264,24 +264,22 @@ export const renderUI = () => `<!DOCTYPE html>
             </p>
             <div class="form-group">
               <label for="cfgScheduler">Interval Pengecekan</label>
-              <select id="cfgScheduler" class="form-control" style="background:rgba(15,23,42,0.8);cursor:pointer" onchange="toggleHoursVisibility()">
-                <option value="custom">Pilih Jam Kustom (Bebas Pilih Jam)</option>
-                <option value="disabled">Manual Saja (Nonaktifkan Pengecekan Otomatis)</option>
+              <select id="cfgScheduler" class="form-control" style="background:rgba(15,23,42,0.8);cursor:pointer" onchange="toggleScheduleContainer()">
+                <option value="custom">Jadwal Kustom (Pilih Waktu Sendiri)</option>
+                <option value="disabled">Manual Saja (Nonaktifkan Otomatis)</option>
               </select>
             </div>
-            <div id="customHoursContainer" style="margin-bottom:1.25rem;display:none">
-              <label style="display:block;font-size:0.8125rem;font-weight:500;color:var(--text-muted);margin-bottom:0.5rem">Pilih Jam Jalur Otomatis (Waktu Lokal Server)</label>
-              <div id="customHoursGrid"></div>
+            <div id="customScheduleContainer" style="margin-bottom:1.25rem;display:none">
+              <label style="display:block;font-size:0.8125rem;font-weight:500;color:var(--text-muted);margin-bottom:0.5rem">Waktu Pengecekan (Waktu Lokal Server)</label>
+              <div id="scheduleList" style="display:flex;flex-direction:column;gap:0.5rem"></div>
+              <button type="button" class="btn btn-accent" onclick="addScheduleEntry()" style="margin-top:0.75rem;width:100%">
+                <i data-lucide="plus" style="width:1.1rem;height:1.1rem"></i>
+                Tambah Waktu
+              </button>
               <div id="schedulerWarning" style="display:none;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);border-radius:0.5rem;padding:0.75rem;margin-top:0.75rem;color:#f59e0b;font-size:0.75rem;align-items:flex-start;gap:0.5rem">
                 <i data-lucide="alert-triangle" style="width:1.1rem;height:1.1rem;flex-shrink:0;margin-top:0.1rem"></i>
-                <span><strong>Peringatan:</strong> Memilih lebih dari 4 kali pemeriksaan per hari dapat meningkatkan risiko pemblokiran firewall (WAF) dari server Perpusnas.</span>
+                <span><strong>Peringatan:</strong> Terlalu banyak jadwal per hari dapat meningkatkan risiko pemblokiran firewall (WAF) dari server Perpusnas.</span>
               </div>
-            </div>
-            <div style="background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.1);border-radius:0.5rem;padding:1rem;margin-top:1.5rem;font-size:0.8125rem">
-              <h4 style="font-weight:600;color:var(--color-primary);margin-bottom:0.25rem;display:flex;align-items:center;gap:0.25rem">
-                <i data-lucide="info" style="width:1rem;height:1rem"></i> Info Penjadwal
-              </h4>
-              Pilihan penjadwalan kustom menggunakan waktu internal sistem operasi server Anda dan secara cerdas akan melewati hari libur Sabtu & Minggu (hanya berjalan pada hari kerja Senin-Jumat).
             </div>
           </div>
           <div style="margin-top:2rem">

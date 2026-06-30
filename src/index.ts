@@ -5,7 +5,7 @@ import { serve } from '@hono/node-server';
 import { db } from './db.js';
 import { renderUI } from './ui.js';
 import { getMergedSettings, writeSettings, getRawSettings } from './settings.js';
-import { startScheduler, updateScheduler } from './scheduler.js';
+import { startScheduler, updateScheduler, clearScheduler } from './scheduler.js';
 import { Env, Book } from './types.js';
 import { dispatchNotifications } from './notifications.js';
 
@@ -46,7 +46,7 @@ const getEnv = (): Env => {
     TELEGRAM_DEFAULT_CHAT_ID: settings.TELEGRAM_DEFAULT_CHAT_ID || undefined,
     NTFY_DEFAULT_TOPIC: settings.NTFY_DEFAULT_TOPIC || undefined,
     NTFY_DEFAULT_URL: settings.NTFY_DEFAULT_URL || undefined,
-    NTFY_AUTH_TOKEN: settings.NTFY_AUTH_TOKEN || undefined,
+    NTFY_AUTH_TOKEN: settings.NTFY_AUTH_TOKEN || process.env.NTFY_AUTH_TOKEN || undefined,
     WEBHOOK_DEFAULT_URL: settings.WEBHOOK_DEFAULT_URL || undefined,
   };
 };
@@ -57,6 +57,8 @@ app.use('*', async (c, next) => {
   c.header('X-Content-Type-Options', 'nosniff');
   c.header('X-Frame-Options', 'DENY');
   c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  c.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  c.header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;");
 });
 
 // Security Middleware: Validate API Key (except root page UI and /verify route)
@@ -80,8 +82,9 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-// Serve Web UI Dashboard
+// Serve Web UI Dashboard (no-cache to prevent proxy caching stale HTML)
 app.get('/', (c) => {
+  c.header('Cache-Control', 'no-cache, no-store, must-revalidate');
   return c.html(renderUI());
 });
 
@@ -310,13 +313,19 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
       console.log(`Checking ISBN for title: "${book.title}"`);
       const searchUrl = `https://isbn.perpusnas.go.id/landing_page/serverside_search2?search=${encodeURIComponent(book.title)}&filter_by=title&start=0&length=10`;
       
+      // Add AbortController timeout to prevent scheduler hang
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout per book
+      
       const response = await fetch(searchUrl, {
+        signal: controller.signal,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'application/json, text/javascript, */*; q=0.01',
           'X-Requested-With': 'XMLHttpRequest'
         }
       });
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Perpusnas search API returned status ${response.status}`);
@@ -402,6 +411,15 @@ startScheduler(settings.SCHEDULER_INTERVAL, async () => {
 }, settings.SCHEDULER_HOURS);
 
 // Start Node server
+// Graceful shutdown handler
+const shutdown = () => {
+  console.log('[Server] Shutting down gracefully...');
+  clearScheduler();
+  process.exit(0);
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 8787;
 console.log(`Server is starting on port ${port}...`);
 

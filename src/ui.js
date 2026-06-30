@@ -23,40 +23,44 @@ function formatDate(d) {
   return `${year}-${month}-${day}`;
 }
 
-// ---- Hour Grid ----
+// ---- Schedule Management ----
 
-function generateHoursGrid() {
-  const grid = document.getElementById('customHoursGrid');
-  if (!grid) return;
-  grid.innerHTML = '';
-  for (let i = 0; i < 24; i++) {
-    const hourStr = String(i).padStart(2, '0') + ':00';
-    const label = document.createElement('label');
-    label.className = 'hour-pill-label';
-    label.id = `hourLabel_${i}`;
-    label.innerHTML = `
-      <input type="checkbox" name="schedulerHours" value="${i}" class="hour-checkbox" style="display:none" onchange="handleHourChange(this, ${i})">
-      <span>${hourStr}</span>`;
-    grid.appendChild(label);
-  }
+function addScheduleEntry(time = "09:00") {
+  const list = document.getElementById('scheduleList');
+  if (!list) return;
+  const id = Date.now() + Math.random();
+  const div = document.createElement('div');
+  div.id = `schedule-${id}`;
+  div.className = 'schedule-entry';
+  div.innerHTML = `
+    <i data-lucide="clock" style="width:1.1rem;height:1.1rem;flex-shrink:0;color:var(--text-muted)"></i>
+    <input type="time" class="form-control schedule-time" value="${time}"
+      style="flex:1;padding:0.375rem 0.5rem;font-size:0.875rem">
+    <button type="button" class="btn-icon" onclick="this.closest('.schedule-entry').remove(); updateWarningVisibility();"
+      title="Hapus">
+      <i data-lucide="trash-2" style="width:1rem;height:1rem"></i>
+    </button>
+  `;
+  list.appendChild(div);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  updateWarningVisibility();
 }
 
-function handleHourChange(checkbox, hour) {
-  const label = document.getElementById(`hourLabel_${hour}`);
-  label.classList.toggle('active', checkbox.checked);
-  checkSelectedHoursCount();
+function getScheduleTimes() {
+  const inputs = document.querySelectorAll('.schedule-time');
+  return Array.from(inputs).map(i => i.value).filter(v => v);
 }
 
-function checkSelectedHoursCount() {
-  const checked = document.querySelectorAll('.hour-checkbox:checked');
-  const warning = document.getElementById('schedulerWarning');
-  warning.style.display = checked.length > 4 ? 'flex' : 'none';
+function updateWarningVisibility() {
+  const count = getScheduleTimes().length;
+  const w = document.getElementById('schedulerWarning');
+  if (w) w.style.display = count > 4 ? 'flex' : 'none';
 }
 
-function toggleHoursVisibility() {
+function toggleScheduleContainer() {
   const val = document.getElementById('cfgScheduler').value;
-  document.getElementById('customHoursContainer').style.display =
-    val === 'custom' ? 'block' : 'none';
+  const c = document.getElementById('customScheduleContainer');
+  if (c) c.style.display = val === 'custom' ? 'block' : 'none';
 }
 
 // ---- Auth / Login ----
@@ -97,7 +101,6 @@ async function handleLogin(e) {
 }
 
 async function tryAutoLogin() {
-  generateHoursGrid();
   const subInput = document.getElementById('submissionDate');
   if (subInput) subInput.value = formatDate(new Date());
 
@@ -105,18 +108,13 @@ async function tryAutoLogin() {
   if (!storedKey) return;
 
   try {
-    const res = await fetch('/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: storedKey }),
-    });
-    const data = await res.json();
-    if (!data.success) return;
+    const res = await fetch('/books', { headers: { 'X-API-Key': storedKey } });
+    if (!res.ok) return;
     document.getElementById('loginOverlay').style.display = 'none';
     document.getElementById('dashboardContent').style.display = 'flex';
     loadBooks();
     loadSettings();
-  } catch (_) {}
+  } catch {}
 }
 
 function handleLogout() {
@@ -297,15 +295,18 @@ async function loadSettings() {
     document.getElementById('cfgWebhookUrl').value = cfg.WEBHOOK_DEFAULT_URL || '';
     document.getElementById('cfgScheduler').value = cfg.SCHEDULER_INTERVAL || 'custom';
 
-    const hours = cfg.SCHEDULER_HOURS || [9, 13, 17];
-    document.querySelectorAll('.hour-checkbox').forEach(cb => {
-      const hr = parseInt(cb.value, 10);
-      cb.checked = hours.includes(hr);
-      document.getElementById(`hourLabel_${hr}`)?.classList.toggle('active', cb.checked);
-    });
+    // Populate schedule entries
+    const scheduleList = document.getElementById('scheduleList');
+    if (scheduleList) {
+      scheduleList.innerHTML = '';
+      const times = cfg.SCHEDULER_HOURS?.length
+        ? cfg.SCHEDULER_HOURS
+        : ['09:00', '13:00', '17:00'];
+      times.forEach(t => addScheduleEntry(t));
+    }
 
-    toggleHoursVisibility();
-    checkSelectedHoursCount();
+    toggleScheduleContainer();
+    updateWarningVisibility();
   } catch (err) {
     console.error(err);
     showAlert('Gagal memuat konfigurasi server.', 'error');
@@ -318,15 +319,6 @@ async function handleSaveSettings(e) {
   if (!apiKey) return;
 
   const interval = document.getElementById('cfgScheduler').value;
-  const selectedHours = [];
-  document.querySelectorAll('.hour-checkbox:checked').forEach(cb => {
-    selectedHours.push(parseInt(cb.value, 10));
-  });
-
-  if (interval === 'custom' && selectedHours.length === 0) {
-    showAlert('Harap pilih minimal 1 jam untuk jadwal kustom.', 'error');
-    return;
-  }
 
   const payload = {
     NTFY_DEFAULT_URL: document.getElementById('cfgNtfyUrl').value.trim() || null,
@@ -336,8 +328,18 @@ async function handleSaveSettings(e) {
     TELEGRAM_DEFAULT_CHAT_ID: document.getElementById('cfgTgChat').value.trim() || null,
     WEBHOOK_DEFAULT_URL: document.getElementById('cfgWebhookUrl').value.trim() || null,
     SCHEDULER_INTERVAL: interval,
-    SCHEDULER_HOURS: selectedHours,
   };
+
+  if (interval === 'custom') {
+    const times = getScheduleTimes();
+    if (times.length === 0) {
+      showAlert('Tambahkan minimal 1 waktu jadwal.', 'error');
+      return;
+    }
+    payload.SCHEDULER_HOURS = times;
+  } else {
+    payload.SCHEDULER_HOURS = [];
+  }
 
   try {
     const res = await fetch('/settings', {
@@ -593,4 +595,9 @@ function closeAlert(id) {
 
 // ---- Init ----
 
-document.addEventListener('DOMContentLoaded', tryAutoLogin);
+document.addEventListener('DOMContentLoaded', () => {
+  // Safety: ensure edit modal starts hidden
+  const modal = document.getElementById('editBookModal');
+  if (modal) modal.style.display = 'none';
+  tryAutoLogin();
+});
