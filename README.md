@@ -124,7 +124,7 @@ Semua request wajib menyertakan header keamanan `X-API-Key` sesuai nilai `API_KE
 ```bash
 curl -X POST http://localhost:8787/books \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: rahasia123" \
+  -H "X-API-Key: ganti_dengan_password_rahasia_anda" \
   -d '{
     "title": "Laskar Pelangi",
     "publisher": "Bentang Pustaka",
@@ -137,7 +137,7 @@ curl -X POST http://localhost:8787/books \
 ```bash
 curl -X PUT http://localhost:8787/books/1 \
   -H "Content-Type: application/json" \
-  -H "X-API-Key: rahasia123" \
+  -H "X-API-Key: ganti_dengan_password_rahasia_anda" \
   -d '{
     "isbn_published_date": "2025-03-20"
   }'
@@ -162,5 +162,5 @@ Anda dapat menguji integrasi notifikasi (Telegram/ntfy/Webhook) langsung dari Da
 Atau gunakan API endpoint `/check` secara langsung:
 ```bash
 curl -X POST http://localhost:8787/check \
-  -H "X-API-Key: rahasia123"
+  -H "X-API-Key: ganti_dengan_password_rahasia_anda"
 ```

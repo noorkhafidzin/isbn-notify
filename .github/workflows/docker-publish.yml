@@ -39,7 +39,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Convert repository name to lowercase for Docker image naming requirements
       # Build tag list based on trigger type
       - name: Build image tags
         id: tags
