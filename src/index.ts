@@ -311,7 +311,12 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
 
     try {
       console.log(`Checking ISBN for title: "${book.title}"`);
-      const searchUrl = `https://isbn.perpusnas.go.id/landing_page/serverside_search2?search=${encodeURIComponent(book.title)}&filter_by=title&start=0&length=10`;
+
+      // Perpusnas API returns 0 results on long queries. Use first ~55 chars (word-boundary safe).
+      const searchQuery = book.title.length > 55
+        ? book.title.slice(0, 55).replace(/\s+\S*$/, '')
+        : book.title;
+      const searchUrl = `https://isbn.perpusnas.go.id/landing_page/serverside_search2?search=${encodeURIComponent(searchQuery)}&filter_by=title&start=0&length=10`;
       
       // Add AbortController timeout to prevent scheduler hang
       const controller = new AbortController();
