@@ -334,25 +334,45 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
       const resJson = (await response.json()) as any;
       const dataList = resJson.data || [];
 
+      // Helpers for fuzzy matching
+      const significantWords = (s: string): string[] =>
+        s.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length >= 3);
+
+      const wordOverlap = (a: string, b: string): number => {
+        const wa = new Set(significantWords(a));
+        const wb = significantWords(b);
+        if (wa.size === 0) return 0;
+        return wb.filter(w => wa.has(w)).length / wa.size;
+      };
+
+      const stripHonorifics = (s: string): string =>
+        s.replace(/\b(Ps\.?|Ir\.?|Dr\.?|M\.?Th|M\.?Pd|S\.?Th|S\.?Pd|S\.?T|M\.?M|S\.?E|M\.?Si|A\.?Md)\b/gi, '')
+         .replace(/[.,]/g, ' ').trim();
+
       // Find match in returned data
       for (const item of dataList) {
         let isTitleMatch = false;
-        
-        // Match titles (case insensitive)
-        if (item.title && item.title.toLowerCase().includes(book.title.toLowerCase())) {
-          isTitleMatch = true;
+
+        // Word-overlap matching: tolerate truncated or slightly different titles
+        if (item.title && book.title) {
+          const score = wordOverlap(book.title, item.title);
+          isTitleMatch = score >= 0.5; // ≥50% tracked-title words appear in API result
         }
 
-        // Match publisher (case insensitive) if specified
+        // Match publisher (case insensitive, normalize common prefixes)
         if (isTitleMatch && book.publisher && item.nama_penerbit) {
-          if (!item.nama_penerbit.toLowerCase().includes(book.publisher.toLowerCase())) {
+          const normTracked = book.publisher.toLowerCase().replace(/^(pt|cv|penerbit|percetakan)\s*/i, '').trim();
+          const normApi = item.nama_penerbit.toLowerCase().replace(/^(pt|cv|penerbit|percetakan)\s*/i, '').trim();
+          if (normTracked && normApi && wordOverlap(normTracked, normApi) < 0.4) {
             isTitleMatch = false;
           }
         }
 
-        // Match author (case insensitive) if specified
+        // Match author (case insensitive, strip honorifics/degrees)
         if (isTitleMatch && book.author && item.kepeng) {
-          if (!item.kepeng.toLowerCase().includes(book.author.toLowerCase())) {
+          const normTracked = stripHonorifics(book.author.toLowerCase());
+          const normApi = stripHonorifics(item.kepeng.toLowerCase());
+          if (normTracked && normApi && wordOverlap(normTracked, normApi) < 0.4) {
             isTitleMatch = false;
           }
         }

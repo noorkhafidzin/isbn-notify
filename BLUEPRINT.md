@@ -1,7 +1,7 @@
 # Blueprint — isbn-notify
 
-- **Version:** v1.1.0
-- **Last Updated:** 2026-06-30
+- **Version:** v1.2.0
+- **Last Updated:** 2026-07-11
 - **Tech Stack:** Node.js, Hono, JSON Database (books.json), TypeScript
 
 ---
@@ -37,10 +37,14 @@ export interface Book {
 
 ### Flow Status Pelacakan:
 1. Pengguna memasukkan judul buku (dan opsional penerbit/author/notifikasi khusus) via `POST /books`. Data ditambahkan ke array dengan status `PENDING`.
-2. Cron Job lokal melacak setiap buku berstatus `PENDING` dengan menembak API Perpusnas:
+2. Internal scheduler melacak setiap buku berstatus `PENDING` dengan menembak API Perpusnas:
    `https://isbn.perpusnas.go.id/landing_page/serverside_search2?search={title}&filter_by=title`
-3. Bila judul dan penerbit/author cocok, nomor ISBN diekstrak.
-4. Status diperbarui ke `COMPLETED`, field `isbn` diisi, dan notifikasi dikirim ke channel yang ditentukan. Buku dengan status `COMPLETED` tidak diproses kembali pada putaran cron berikutnya.
+3. **Pencocokan Fuzzy (Word-Overlap Scoring — v1.2.0+):**
+   - Judul: kata-kata signifikan (≥3 huruf) diekstrak dari judul tracked, lalu dihitung tumpang tindihnya dengan judul hasil API. Minimal 50% kata kunci harus cocok (toleran terhadap judul terpotong/berbeda).
+   - Penerbit: prefix "PT"/"CV"/"Penerbit"/"Percetakan" dinormalisasi, lalu diukur overlap minimal 40%.
+   - Penulis: gelar akademik (Ps., Ir., M.Th., dll.) dan tanda baca otomatis di-strip sebelum pembandingan overlap minimal 40%.
+4. Bila match ditemukan, nomor ISBN diekstrak.
+5. Status diperbarui ke `COMPLETED`, field `isbn` diisi, dan notifikasi dikirim ke channel yang ditentukan. Buku dengan status `COMPLETED` tidak diproses kembali pada putaran berikutnya.
 
 ---
 

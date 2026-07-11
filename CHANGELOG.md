@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-07-11
+
+### Changed
+- **Matching Logic ISBN — Word-Overlap Scoring**: Algoritma pencocokan buku di `checkIsbns()` ditingkatkan dari `includes()` kaku ke sistem scoring berbasis kata signifikan (word-overlap). Judul buku panjang yang hanya tersimpan sebagian di API Perpusnas tetap terdeteksi selama ≥50% kata kunci cocok. Penerbit dan penulis dinormalisasi (prefix PT/CV di-strip, gelar akademik dihapus) lalu diukur dengan threshold ≥40% overlap.
+
+### Fixed
+- **Buku dengan Judul Panjang Tidak Pernah Match**: Buku dengan judul panjang (misal kategori rohani/subtitle panjang) sebelumnya tidak pernah cocok karena API Perpusnas menyimpan judul terpotong. Kini kata-kata kunci diekstrak dan dihitung tumpang tindihnya secara toleran.
+- **Variasi Nama Penerbit/Penulis Gagal Match**: Prefix "PT"/"CV"/"Penerbit" dan gelar akademik (Ps., Ir., M.Th, dll.) kini otomatis dinormalisasi sebelum pembandingan, menangani variasi format nama yang sebelumnya gagal terdeteksi.
+
+---
+
 ## [1.1.0] - 2026-06-30
 
 ### Added
