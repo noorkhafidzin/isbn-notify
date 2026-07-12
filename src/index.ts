@@ -64,7 +64,7 @@ app.use('*', async (c, next) => {
 // Security Middleware: Validate API Key (except root page UI and /verify route)
 app.use('*', async (c, next) => {
   const path = c.req.path;
-  if (path === '/' || path === '/ui.css' || path === '/ui.js' || path === '/index.html' || path === '/verify') {
+  if (path === '/' || path === '/ui.css' || path === '/ui.js' || path === '/index.html' || path === '/verify' || path === '/favicon.ico') {
     return await next();
   }
 
@@ -99,6 +99,12 @@ app.get('/ui.js', async (c) => {
   const { readFileSync } = await import('fs');
   const js = readFileSync('./src/ui.js', 'utf-8');
   return c.text(js, 200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'public, max-age=3600' });
+});
+
+app.get('/favicon.ico', async (c) => {
+  const { readFileSync } = await import('fs');
+  const png = readFileSync('./icon.png');
+  return c.body(png, 200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
 });
 
 // REST API: Get all tracked books

@@ -26,6 +26,7 @@ RUN apk add --no-cache su-exec
 # Copy raw static assets required at runtime
 COPY --from=builder /app/src/ui.css ./src/ui.css
 COPY --from=builder /app/src/ui.js ./src/ui.js
+COPY icon.png ./icon.png
 
 # Create non-root user and set permissions for /app
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
