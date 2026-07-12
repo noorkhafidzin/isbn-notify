@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-07-12
+
+### Added
+- **Favicon Support**: Route `/favicon.ico` menyajikan `icon.png` yang disimpan di root proyek. Dikecualikan dari middleware autentikasi agar browser dapat mengunduhnya tanpa API Key. `Dockerfile` diperbarui untuk menyalin `icon.png` ke image production.
+
+---
+
 ## [1.2.0] - 2026-07-11
 
 ### Changed

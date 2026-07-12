@@ -1,7 +1,7 @@
 # Blueprint — isbn-notify
 
-- **Version:** v1.2.0
-- **Last Updated:** 2026-07-11
+- **Version:** v1.2.1
+- **Last Updated:** 2026-07-12
 - **Tech Stack:** Node.js, Hono, JSON Database (books.json), TypeScript
 
 ---
