@@ -23,6 +23,22 @@ function formatDate(d) {
   return `${year}-${month}-${day}`;
 }
 
+// ---- Publisher Suggestions ----
+
+function refreshPublisherList() {
+  const publishers = [...new Set(booksData.map(b => b.publisher).filter(p => p))];
+  ['publisherList', 'editPublisherList'].forEach(id => {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    dl.innerHTML = '';
+    publishers.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p;
+      dl.appendChild(opt);
+    });
+  });
+}
+
 // ---- Schedule Management ----
 
 function addScheduleEntry(time = "09:00") {
@@ -165,6 +181,7 @@ async function loadBooks() {
       return;
     }
     booksData = data.books || [];
+    refreshPublisherList();
     renderBooksTable();
     const pending = booksData.filter(b => b.status === 'PENDING').length;
     const completed = booksData.filter(b => b.status === 'COMPLETED').length;

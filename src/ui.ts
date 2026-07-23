@@ -131,8 +131,9 @@ export const renderUI = () => `<!DOCTYPE html>
           </div>
           <div class="form-group">
             <label for="publisher">Publisher</label>
-            <input type="text" id="publisher" class="form-control" placeholder="e.g. Bentang Pustaka">
+            <input type="text" id="publisher" class="form-control" list="publisherList" placeholder="e.g. Bentang Pustaka">
           </div>
+          <datalist id="publisherList"></datalist>
           <div class="form-group">
             <label for="author">Author</label>
             <input type="text" id="author" class="form-control" placeholder="e.g. Andrea Hirata">
@@ -310,8 +311,9 @@ export const renderUI = () => `<!DOCTYPE html>
         <div class="form-row">
           <div class="form-group">
             <label for="editPublisher">Publisher</label>
-            <input type="text" id="editPublisher" class="form-control">
+            <input type="text" id="editPublisher" class="form-control" list="editPublisherList">
           </div>
+          <datalist id="editPublisherList"></datalist>
           <div class="form-group">
             <label for="editAuthor">Author</label>
             <input type="text" id="editAuthor" class="form-control">
