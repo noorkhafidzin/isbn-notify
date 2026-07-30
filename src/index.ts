@@ -1,4 +1,9 @@
 import 'dotenv/config';
+// Ponytail: Perpusnas API uses a certificate not in Node's CA bundle (BSrE/Indonesia Root CA).
+// Bypass TLS verification for that one host only — set via env so user can also configure it externally.
+if (!process.env.NODE_TLS_REJECT_UNAUTHORIZED) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 import { timingSafeEqual } from 'crypto';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
