@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-07-30
+
+### Fixed
+- **Kritis: Semua Pengecekan ISBN Gagal — TLS Certificate Perpusnas Tidak Dikenali**: Sertifikat SSL `isbn.perpusnas.go.id` menggunakan CA Indonesia (BSrE) yang tidak ada di bundle CA bawaan Node.js. Semua `fetch` ke API Perpusnas gagal dengan `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, mengakibatkan buku baru (ID #6, #7, #8) tidak pernah diperiksa dan `last_checked_at` tetap `null`. Scheduler berjalan normal tetapi setiap request ditolak sebelum sempat mencari ISBN. Diperbaiki dengan menambahkan `NODE_TLS_REJECT_UNAUTHORIZED=0` di awal startup server. Pengguna dapat menimpa nilai ini di lingkungan deployment untuk kontrol lebih ketat.
+
+### Security
+- **TLS Verification Bypass**: `NODE_TLS_REJECT_UNAUTHORIZED` diset ke `'0'` jika belum ditentukan, untuk mengakomodasi sertifikat CA Indonesia yang tidak dikenal Node.js. Hanya berlaku untuk proses Node.js ini; dapat dioverride dengan nilai `'1'` di environment deployment untuk mengaktifkan kembali verifikasi ketat.
+
+---
+
 ## [1.2.2] - 2026-07-23
 
 ### Added
