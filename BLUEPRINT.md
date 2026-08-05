@@ -1,7 +1,7 @@
 # Blueprint — isbn-notify
 
-- **Version:** v1.2.3
-- **Last Updated:** 2026-07-30
+- **Version:** v1.2.4
+- **Last Updated:** 2026-08-05
 - **Tech Stack:** Node.js, Hono, JSON Database (books.json), TypeScript
 
 ---
@@ -99,6 +99,17 @@ Semua endpoint dilindungi menggunakan header `X-API-Key`.
   ```
 
   Field `message` berisi teks notifikasi yang siap copy-paste ke klien (memakai judul yang dilacak, bukan judul resmi dari web ISBN).
+
+- **Format Pesan Terpadu (v1.2.4+):** Seluruh kanal notifikasi (Telegram, ntfy, dan field `message` webhook) memakai format blok yang konsisten dan siap copy-paste:
+  ```
+  📘 Telah Terbit ISBN
+
+  No. ISBN : [nomor ISBN]
+  Judul Buku : [judul yang dilacak]
+  Pengarang : [nama pengarang]
+  Penerbit : [nama penerbit]
+  ```
+  Judul resmi dari web ISBN tidak lagi disertakan (referensi `officialTitle`/`official_title` dihapus). Jika pengarang/penerbit kosong, ditampilkan tanda `-`.
 
 ---
 

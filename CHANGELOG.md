@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-08-05
+
+### Changed
+- **Format Notifikasi Siap Copy-Paste ke Klien**: Body notifikasi di semua kanal (Telegram, ntfy, dan field `message` pada payload webhook) kini memakai format profesional yang siap disalin langsung ke klien:
+  ```
+  📘 Telah Terbit ISBN
+
+  No. ISBN : 978-634-97091-4-9
+  Judul Buku : [judul yang dilacak]
+  Pengarang : [nama pengarang]
+  Penerbit : [nama penerbit]
+  ```
+  Informasi lengkap (nomor ISBN, judul, pengarang, dan penerbit) kini ditampilkan dalam satu blok rapi, dengan fallback `-` jika pengarang/penerbit tidak diisi.
+- **Judul Resmi dari Web ISBN Dihapus**: Notifikasi tidak lagi menyertakan judul resmi hasil API Perpusnas (sebelumnya tampil sebagai `(Resmi: "...")` di ntfy dan `Judul Resmi` di Telegram). Judul yang dipakai adalah judul yang dilacak pengguna. Seluruh referensi `officialTitle`/`official_title` dihapus dari kode notifikasi dan payload webhook.
+- **Payload Webhook**: Field `official_title` dihapus dari payload JSON event `isbn.published` dan digantikan field `message` berisi teks notifikasi siap copy-paste. Sisa payload terstruktur (`id`, `tracked_title`, `publisher`, `author`, `isbn`) tetap dipertahankan.
+
+---
+
 ## [1.2.3] - 2026-07-30
 
 ### Fixed
