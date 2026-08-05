@@ -318,7 +318,6 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
     checked++;
     let hasFoundIsbn = false;
     let foundIsbnStr = '';
-    let foundOfficialTitle = '';
 
     try {
       console.log(`Checking ISBN for title: "${book.title}"`);
@@ -399,7 +398,6 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
           if (rawIsbn && rawIsbn.trim() !== '' && rawIsbn.trim() !== '-') {
             hasFoundIsbn = true;
             foundIsbnStr = rawIsbn.trim();
-            foundOfficialTitle = item.title.trim();
             break;
           }
         }
@@ -418,7 +416,7 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
         console.log(`Success: ISBN found for "${book.title}" -> ${foundIsbnStr}. Dispatching notifications...`);
         
         // Dispatch notifications to configured channels
-        await dispatchNotifications(env, book, foundOfficialTitle, foundIsbnStr);
+        await dispatchNotifications(env, book, foundIsbnStr);
         
         details.push({ id: book.id, title: book.title, status: 'FOUND', isbn: foundIsbnStr });
       } else {

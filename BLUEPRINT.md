@@ -87,16 +87,18 @@ Semua endpoint dilindungi menggunakan header `X-API-Key`.
   {
     "event": "isbn.published",
     "timestamp": "2026-06-24T06:27:06Z",
+    "message": "📘 Telah Terbit ISBN\n\nNo. ISBN : 978-602-1203-49-1\nJudul Buku : Laskar PDGI Bali pelangi Mentawai\nPengarang : -\nPenerbit : UD. Meta Kata",
     "book": {
       "id": 1,
       "tracked_title": "Laskar PDGI Bali pelangi Mentawai",
-      "official_title": "Laskar PDGI Bali pelangi Mentawai",
       "publisher": "UD. Meta Kata",
       "author": null,
       "isbn": "978-602-1203-49-1"
     }
   }
   ```
+
+  Field `message` berisi teks notifikasi yang siap copy-paste ke klien (memakai judul yang dilacak, bukan judul resmi dari web ISBN).
 
 ---
 

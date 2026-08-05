@@ -14,25 +14,36 @@ function escapeHtml(str: string | null): string {
 import { Book, Env } from './types.js';
 
 /**
+ * Builds a professional, copy-paste-ready notification message body.
+ * Uses the tracked title (not the official title from the ISBN web).
+ */
+function buildNotificationMessage(book: Book, isbn: string): string {
+  return [
+    '📘 Telah Terbit ISBN',
+    '',
+    `No. ISBN : ${isbn}`,
+    `Judul Buku : ${book.title}`,
+    `Pengarang : ${book.author || '-'}`,
+    `Penerbit : ${book.publisher || '-'}`,
+  ].join('\n');
+}
+
+/**
  * Sends a notification via Telegram Bot API
  */
 export async function sendTelegramNotification(
   token: string,
   chatId: string,
   book: Book,
-  officialTitle: string,
   isbn: string
 ): Promise<boolean> {
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   
   const text = `📖 <b>ISBN TELAH TERBIT!</b> 📖\n\n` +
-    `Buku yang Anda lacak telah resmi diterbitkan nomor ISBN-nya oleh Perpusnas RI.\n\n` +
-    `<b>Detail Buku:</b>\n` +
-    `• <b>Judul Lacak:</b> ${escapeHtml(book.title)}\n` +
-    `• <b>Judul Resmi:</b> ${escapeHtml(officialTitle)}\n` +
-    `• <b>Penerbit:</b> ${escapeHtml(book.publisher) || '-'}\n` +
-    `• <b>Nomor ISBN:</b> <code>${escapeHtml(isbn)}</code>\n\n` +
-    `<i>Sistem isbn-notify telah menonaktifkan pelacakan untuk buku ini.</i>`;
+    `<b>No. ISBN:</b> <code>${escapeHtml(isbn)}</code>\n` +
+    `<b>Judul Buku:</b> ${escapeHtml(book.title)}\n` +
+    `<b>Pengarang:</b> ${escapeHtml(book.author) || '-'}\n` +
+    `<b>Penerbit:</b> ${escapeHtml(book.publisher) || '-'}`;
 
   try {
     const res = await fetch(url, {
@@ -64,14 +75,13 @@ export async function sendTelegramNotification(
 export async function sendNtfyNotification(
   topic: string,
   book: Book,
-  officialTitle: string,
   isbn: string,
   authToken?: string,
   baseUrl?: string
 ): Promise<boolean> {
   const base = (baseUrl || 'https://ntfy.sh').replace(/\/$/, '');
   const url = `${base}/${topic}`;
-  const message = `Buku "${book.title}" (Resmi: "${officialTitle}") telah mendapatkan nomor ISBN: ${isbn}.`;
+  const message = buildNotificationMessage(book, isbn);
 
   try {
     const headers: Record<string, string> = {
@@ -114,16 +124,15 @@ export async function sendNtfyNotification(
 export async function sendWebhookNotification(
   url: string,
   book: Book,
-  officialTitle: string,
   isbn: string
 ): Promise<boolean> {
   const payload = {
     event: 'isbn.published',
     timestamp: new Date().toISOString(),
+    message: buildNotificationMessage(book, isbn),
     book: {
       id: book.id,
       tracked_title: book.title,
-      official_title: officialTitle,
       publisher: book.publisher,
       author: book.author,
       isbn: isbn,
@@ -157,7 +166,6 @@ export async function sendWebhookNotification(
 export async function dispatchNotifications(
   env: Env,
   book: Book,
-  officialTitle: string,
   isbn: string
 ): Promise<{ telegram: boolean; ntfy: boolean; webhook: boolean }> {
   const results = {
@@ -176,7 +184,7 @@ export async function dispatchNotifications(
   const tgChatId = book.tg_chat_id || env.TELEGRAM_DEFAULT_CHAT_ID;
   if (tgToken && tgChatId) {
     console.log(`[Notifications] Sending Telegram to ${tgChatId}...`);
-    results.telegram = await sendTelegramNotification(tgToken, tgChatId, book, officialTitle, isbn);
+    results.telegram = await sendTelegramNotification(tgToken, tgChatId, book, isbn);
   } else {
     console.log(`[Notifications] Skipping Telegram: token=${!!tgToken}, chatId=${!!tgChatId}`);
   }
@@ -188,7 +196,6 @@ export async function dispatchNotifications(
     results.ntfy = await sendNtfyNotification(
       ntfyTopic,
       book,
-      officialTitle,
       isbn,
       env.NTFY_AUTH_TOKEN,
       env.NTFY_DEFAULT_URL
@@ -202,7 +209,7 @@ export async function dispatchNotifications(
   const webhookUrl = book.webhook_url || env.WEBHOOK_DEFAULT_URL;
   if (webhookUrl) {
     console.log(`[Notifications] Sending Webhook to ${webhookUrl}...`);
-    results.webhook = await sendWebhookNotification(webhookUrl, book, officialTitle, isbn);
+    results.webhook = await sendWebhookNotification(webhookUrl, book, isbn);
   } else {
     console.log(`[Notifications] Skipping Webhook: no URL configured`);
   }
