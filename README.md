@@ -8,9 +8,11 @@ Sistem ini memantau ketersediaan nomor ISBN secara periodik di database pencaria
 
 ## ✨ Fitur Utama
 - 🚀 **Bebas WAF**: Menggunakan IP perumahan Anda sendiri, aman dari blokir firewall Perpusnas.
-- 🔔 **Multi-Notifikasi**: Dukungan bawaan untuk Telegram, ntfy.sh, dan custom Webhook.
+- 📋 **Quick Add dari Perpusnas**: Copy-paste data tabel permohonan ISBN langsung dari web Perpusnas. Sistem otomatis memparse judul, pengarang, tanggal pengajuan, dan no resmi. Mendukung input single book maupun batch.
+- 🔔 **Multi-Notifikasi**: Dukungan bawaan untuk Telegram, ntfy.sh, dan custom Webhook. Format notifikasi siap copy-paste ke klien.
 - 🕒 **Smart Scheduler**: Penjadwalan otomatis internal yang cerdas, bebas pilih jam-jam spesifik, otomatis melewati hari libur (Sabtu & Minggu).
 - 📅 **Pelacakan Tanggal**: Catat tanggal pengajuan dan tanggal terbit ISBN secara otomatis/manual, lengkap dengan analisis rata-rata waktu terbit.
+- 🔍 **Filter & Pagination**: Filter buku berdasarkan status (Pengajuan/Terbit) dan pagination dengan opsi 10/25/50/Semua data per halaman.
 - 🐳 **Docker Ready**: Sangat mudah di-deploy ke server menggunakan Docker Compose.
 - 🔒 **Aman**: Dilengkapi proteksi rate-limiting, timing-attack prevention, dan Docker non-root user.
 
@@ -148,6 +150,16 @@ curl -X PUT http://localhost:8787/books/1 \
 ## 📊 Analisis Waktu Terbit
 
 Dashboard menyediakan widget **Analisis Waktu Terbit** yang menghitung rata-rata durasi dari tanggal pengajuan hingga tanggal terbit ISBN. Filter rentang waktu tersedia (1 bulan, 2 bulan, 3 bulan, atau rentang kustom) agar analisis lebih relevan.
+
+---
+
+## 🌐 Antarmuka Bahasa Indonesia
+
+Seluruh antarmuka dashboard telah diterjemahkan ke **bahasa Indonesia** secara konsisten, termasuk:
+- Navigasi, label tabel, tombol, filter
+- Modal edit dan quick add
+- Notifikasi alert
+- Pengaturan dan penjadwal
 
 ---
 
