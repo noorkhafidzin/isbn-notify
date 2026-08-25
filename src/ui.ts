@@ -198,6 +198,7 @@ export const renderUI = () => `<!DOCTYPE html>
           <table id="booksTable">
             <thead>
               <tr>
+                <th style="width:50px">No.</th>
                 <th>Title</th>
                 <th>Author / Publisher</th>
                 <th>Status</th>

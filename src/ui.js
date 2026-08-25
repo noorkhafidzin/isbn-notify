@@ -1,4 +1,5 @@
 let booksData = [];
+let currentStatusFilter = 'all';
 
 // ---- Helpers ----
 
@@ -259,6 +260,13 @@ async function handleDeleteBook(id) {
   }
 }
 
+// ---- Status Filter ----
+
+function filterByStatus(status) {
+  currentStatusFilter = status;
+  renderBooksTable();
+}
+
 // ---- Manual Check ----
 
 async function handleManualCheck() {
@@ -501,6 +509,7 @@ function renderBooksTable() {
 
     return `
       <tr>
+        <td data-label="No." style="text-align:center;color:var(--text-muted);font-size:0.8125rem;width:50px">${index + 1}</td>
         <td data-label="Title"><div style="font-weight:600;color:var(--text-main)">${escapeHtml(book.title)}</div></td>
         <td data-label="Author / Publisher">
           <div style="font-size:0.8125rem;color:var(--text-main)">A: ${escapeHtml(authorStr)}</div>
