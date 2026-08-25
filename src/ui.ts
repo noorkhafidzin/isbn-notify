@@ -189,6 +189,13 @@ export const renderUI = () => `<!DOCTYPE html>
           <div class="search-bar">
             <input type="text" id="searchQuery" class="form-control" placeholder="Search title or publisher..." oninput="renderBooksTable()">
           </div>
+          <div style="display:flex;gap:0.5rem;align-items:center">
+            <select id="statusFilter" class="form-control" onchange="filterByStatus(this.value)" style="background:rgba(15,23,42,0.8);cursor:pointer;font-size:0.8125rem;padding:0.375rem 0.5rem">
+              <option value="all">Semua Status</option>
+              <option value="PENDING">Pengajuan (Pending)</option>
+              <option value="COMPLETED">Terbit (Completed)</option>
+            </select>
+          </div>
           <button type="button" class="btn btn-accent" id="btnCheckNow" onclick="handleManualCheck()">
             <i data-lucide="refresh-cw" id="checkIcon" style="width:1.1rem;height:1.1rem"></i>
             <span>Check ISBNs</span>
