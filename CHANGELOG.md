@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.7] - 2026-08-05
+
+### Added
+- **Quick Add Tracking Permohonan ISBN**: Fitur baru yang memungkinkan pengguna copy-paste data tabel permohonan ISBN langsung dari web Perpusnas. Sistem otomatis memparse data (judul, pengarang, tanggal pengajuan, no resi) dan menampilkan modal konfirmasi untuk koreksi sebelum disimpan. Mendukung input single book maupun batch (multiple books).
+- **Filter Status di Tracking List**: Dropdown filter untuk memfilter buku berdasarkan status: Semua, Pengajuan (Pending), atau Terbit (Completed). Reset otomatis ke halaman 1 saat filter berubah.
+- **Nomor Urut di Tabel**: Kolom No. otomatis ditampilkan di paling kiri tabel Tracking List, berurutan lintas halaman.
+- **Pagination Tracking List**: Navigasi halaman dengan opsi tampilkan 10, 25, 50, atau Semua data. Termasuk tombol Prev/Next dan nomor halaman dengan ellipsis untuk jumlah halaman besar.
+
+### Changed
+- **Terjemahan UI ke Bahasa Indonesia**: Seluruh teks antarmuka (navigasi, label, tombol, filter, modal, notifikasi, pengaturan) diterjemahkan ke bahasa Indonesia secara konsisten. Contoh: Tracking List → Daftar Pelacakan, Settings → Pengaturan, Logout → Keluar, dll.
+
+### Fixed
+- **Index Variable Tidak Terdefinisi di renderBooksTable**: Parameter `index` tidak diteruskan ke callback `.map()`, menyebabkan ReferenceError saat rendering tabel. Diperbaiki dengan menambahkan `index` ke parameter callback.
+- **Status Filter Tidak Bekerja**: Logika apply status filter tidak pernah masuk ke `renderBooksTable()` karena regex sebelumnya gagal karena CRLF line endings. Sekarang filter (Semua/Pending/Completed) berfungsi dengan benar.
+
+---
+
 ## [1.2.4] - 2026-08-05
 
 ### Changed
