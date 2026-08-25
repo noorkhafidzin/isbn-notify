@@ -3,7 +3,7 @@ export const renderUI = () => `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ISBN Notify — Dashboard</title>
+  <title>ISBN Notify — Dasbor</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -51,15 +51,15 @@ export const renderUI = () => `<!DOCTYPE html>
       <nav class="tabs-nav" aria-label="Main Navigation">
         <button type="button" id="tabBtnTracking" class="tab-btn active" onclick="switchTab('tracking')">
           <i data-lucide="book-open" style="width:1rem;height:1rem"></i>
-          Tracking List
+          Daftar Pelacakan
         </button>
         <button type="button" id="tabBtnSettings" class="tab-btn" onclick="switchTab('settings')">
           <i data-lucide="sliders" style="width:1rem;height:1rem"></i>
-          Settings & Scheduler
+          Pengaturan & Penjadwal
         </button>
         <button type="button" class="tab-btn" style="color:var(--color-error);background:rgba(239,68,68,0.05);border-color:rgba(239,68,68,0.1)" onclick="handleLogout()">
           <i data-lucide="log-out" style="width:1rem;height:1rem"></i>
-          Logout
+          Keluar
         </button>
       </nav>
     </header>
@@ -76,12 +76,12 @@ export const renderUI = () => `<!DOCTYPE html>
         <div class="stat-divider"></div>
         <div class="stat-card">
           <span class="stat-val" id="statPending" style="color:var(--color-pending)">0</span>
-          <span class="stat-lbl">Pending</span>
+          <span class="stat-lbl">Pengajuan</span>
         </div>
         <div class="stat-divider"></div>
         <div class="stat-card">
           <span class="stat-val" id="statCompleted" style="color:var(--color-success)">0</span>
-          <span class="stat-lbl">Done</span>
+          <span class="stat-lbl">Terbit</span>
         </div>
       </section>
 
@@ -122,27 +122,27 @@ export const renderUI = () => `<!DOCTYPE html>
       <section id="registerPanel" class="glass-card">
         <h2 class="form-title">
           <i data-lucide="plus-circle" class="logo-icon" style="width:1.25rem;height:1.25rem"></i>
-          Register New Book
+          Daftar Buku Baru
         </h2>
         <div style="margin-bottom:1.25rem;display:flex;flex-direction:column;gap:0.75rem">
           <button type="button" class="btn btn-accent w-full" onclick="openQuickAddModal()">
             <i data-lucide="clipboard-paste" style="width:1.1rem;height:1.1rem"></i>
-            Quick Add from Perpusnas
+            Tambah Cepat dari Perpusnas
           </button>
           <div style="text-align:center;font-size:0.75rem;color:var(--text-muted)">atau daftar manual di bawah ini</div>
         </div>
         <form id="addBookForm" onsubmit="handleAddBook(event)">
           <div class="form-group">
-            <label for="title">Book Title *</label>
+            <label for="title">Judul Buku *</label>
             <input type="text" id="title" class="form-control" placeholder="e.g. Laskar Pelangi" required>
           </div>
           <div class="form-group">
-            <label for="publisher">Publisher</label>
+            <label for="publisher">Penerbit</label>
             <input type="text" id="publisher" class="form-control" list="publisherList" placeholder="e.g. Bentang Pustaka">
           </div>
           <datalist id="publisherList"></datalist>
           <div class="form-group">
-            <label for="author">Author</label>
+            <label for="author">Pengarang</label>
             <input type="text" id="author" class="form-control" placeholder="e.g. Andrea Hirata">
           </div>
           <div class="form-group">
@@ -152,29 +152,29 @@ export const renderUI = () => `<!DOCTYPE html>
 
           <div style="margin:1.25rem 0 0.75rem 0">
             <button type="button" class="btn-icon" style="width:100%;display:flex;align-items:center;justify-content:space-between;font-size:0.75rem;font-weight:600;padding:0.5rem 0.75rem" onclick="toggleAdvancedSettings()">
-              <span>Advanced Routing Override</span>
+              <span>Pengaturan Lanjutan Notifikasi</span>
               <i data-lucide="chevron-down" id="advChevron" style="width:1rem;height:1rem;transition:transform var(--transition-timing)"></i>
             </button>
           </div>
 
           <div id="advancedSettings" style="display:none;padding-top:0.5rem;border-top:1px dashed rgba(255,255,255,0.05);margin-bottom:1.25rem">
             <div class="form-group">
-              <label for="ntfyTopic">ntfy Topic Override</label>
+              <label for="ntfyTopic">Topik ntfy Khusus</label>
               <input type="text" id="ntfyTopic" class="form-control" placeholder="e.g. my-custom-topic">
             </div>
             <div class="form-group">
-              <label for="tgChatId">Telegram Chat ID Override</label>
+              <label for="tgChatId">Chat ID Telegram Khusus</label>
               <input type="text" id="tgChatId" class="form-control" placeholder="e.g. -100123456789">
             </div>
             <div class="form-group">
-              <label for="webhookUrl">Webhook URL Override</label>
+              <label for="webhookUrl">URL Webhook Khusus</label>
               <input type="url" id="webhookUrl" class="form-control" placeholder="e.g. https://api.myweb.com/hook">
             </div>
           </div>
 
           <button type="submit" class="btn btn-primary w-full" id="btnSubmit">
             <i data-lucide="save" style="width:1.1rem;height:1.1rem"></i>
-            Start Tracking
+            Mulai Lacak
           </button>
         </form>
       </section>
@@ -184,21 +184,21 @@ export const renderUI = () => `<!DOCTYPE html>
         <div class="panel-header">
           <h2 class="panel-title">
             <i data-lucide="book-open" class="logo-icon" style="width:1.25rem;height:1.25rem;color:var(--color-accent)"></i>
-            Tracking List
+            Daftar Pelacakan
           </h2>
           <div class="search-bar">
-            <input type="text" id="searchQuery" class="form-control" placeholder="Search title or publisher..." oninput="renderBooksTable()">
+            <input type="text" id="searchQuery" class="form-control" placeholder="Cari judul atau penerbit..." oninput="renderBooksTable()">
           </div>
           <div style="display:flex;gap:0.5rem;align-items:center">
             <select id="statusFilter" class="form-control" onchange="filterByStatus(this.value)" style="background:rgba(15,23,42,0.8);cursor:pointer;font-size:0.8125rem;padding:0.375rem 0.5rem">
               <option value="all">Semua Status</option>
-              <option value="PENDING">Pengajuan (Pending)</option>
-              <option value="COMPLETED">Terbit (Completed)</option>
+              <option value="PENDING">Pengajuan</option>
+              <option value="COMPLETED">Terbit</option>
             </select>
           </div>
           <button type="button" class="btn btn-accent" id="btnCheckNow" onclick="handleManualCheck()">
             <i data-lucide="refresh-cw" id="checkIcon" style="width:1.1rem;height:1.1rem"></i>
-            <span>Check ISBNs</span>
+            <span>Cek ISBN</span>
           </button>
         </div>
         <div class="table-container">
@@ -206,11 +206,11 @@ export const renderUI = () => `<!DOCTYPE html>
             <thead>
               <tr>
                 <th style="width:50px">No.</th>
-                <th>Title</th>
-                <th>Author / Publisher</th>
+                <th>Judul</th>
+                <th>Pengarang / Penerbit</th>
                 <th>Status</th>
                 <th>ISBN</th>
-                <th class="text-right">Actions</th>
+                <th class="text-right">Aksi</th>
               </tr>
             </thead>
             <tbody id="booksListBody"></tbody>
@@ -240,39 +240,39 @@ export const renderUI = () => `<!DOCTYPE html>
         <section class="glass-card">
           <h2 class="form-title">
             <i data-lucide="bell" class="logo-icon" style="width:1.25rem;height:1.25rem"></i>
-            Notification Integrations
+            Integrasi Notifikasi
           </h2>
           <form id="settingsNotifForm" onsubmit="handleSaveSettings(event)">
             <div style="margin-bottom:1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:1rem">
-              <h3 style="font-size:0.875rem;font-weight:600;color:var(--color-primary);margin-bottom:0.75rem">ntfy.sh Configuration</h3>
+              <h3 style="font-size:0.875rem;font-weight:600;color:var(--color-primary);margin-bottom:0.75rem">Konfigurasi ntfy.sh</h3>
               <div class="form-group">
-                <label for="cfgNtfyUrl">Server Base URL</label>
+                <label for="cfgNtfyUrl">URL Base Server</label>
                 <input type="url" id="cfgNtfyUrl" class="form-control" placeholder="https://ntfy.sh">
               </div>
               <div class="form-group">
-                <label for="cfgNtfyTopic">Default Topic Name</label>
+                <label for="cfgNtfyTopic">Nama Topik Default</label>
                 <input type="text" id="cfgNtfyTopic" class="form-control" placeholder="isbn">
               </div>
               <div class="form-group">
-                <label for="cfgNtfyAuth">Authorization Token</label>
+                <label for="cfgNtfyAuth">Token Otorisasi</label>
                 <input type="password" id="cfgNtfyAuth" class="form-control" placeholder="username:password or Bearer token">
               </div>
             </div>
             <div style="margin-bottom:1.5rem;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:1rem">
-              <h3 style="font-size:0.875rem;font-weight:600;color:var(--color-primary);margin-bottom:0.75rem">Telegram Bot Configuration</h3>
+              <h3 style="font-size:0.875rem;font-weight:600;color:var(--color-primary);margin-bottom:0.75rem">Konfigurasi Bot Telegram</h3>
               <div class="form-group">
                 <label for="cfgTgToken">Telegram Bot Token</label>
                 <input type="password" id="cfgTgToken" class="form-control" placeholder="123456789:ABCdefGhI...">
               </div>
               <div class="form-group">
-                <label for="cfgTgChat">Default Chat ID / Channel ID</label>
+                <label for="cfgTgChat">Chat ID / Channel ID Default</label>
                 <input type="text" id="cfgTgChat" class="form-control" placeholder="-100123456789">
               </div>
             </div>
             <div>
-              <h3 style="font-size:0.875rem;font-weight:600;color:var(--color-primary);margin-bottom:0.75rem">Webhook Settings</h3>
+              <h3 style="font-size:0.875rem;font-weight:600;color:var(--color-primary);margin-bottom:0.75rem">Pengaturan Webhook</h3>
               <div class="form-group">
-                <label for="cfgWebhookUrl">Default Webhook URL</label>
+                <label for="cfgWebhookUrl">URL Webhook Default</label>
                 <input type="url" id="cfgWebhookUrl" class="form-control" placeholder="https://your-domain.com/webhook">
               </div>
             </div>
@@ -286,7 +286,7 @@ export const renderUI = () => `<!DOCTYPE html>
           <div>
             <h2 class="form-title">
               <i data-lucide="clock" class="logo-icon" style="width:1.25rem;height:1.25rem;color:var(--color-accent)"></i>
-              Background Scheduler
+              Penjadwal Latar Belakang
             </h2>
             <p style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:1.5rem">
               Atur seberapa sering server akan melakukan pengecekan ISBN baru ke Perpusnas secara otomatis di latar belakang.
@@ -314,7 +314,7 @@ export const renderUI = () => `<!DOCTYPE html>
           <div style="margin-top:2rem">
             <button type="button" class="btn btn-primary w-full" onclick="document.getElementById('btnSaveSettings').click()">
               <i data-lucide="save" style="width:1.1rem;height:1.1rem"></i>
-              Save Configuration
+              Simpan Konfigurasi
             </button>
             <button type="submit" id="btnSaveSettings" form="settingsNotifForm" style="display:none"></button>
           </div>
@@ -328,7 +328,7 @@ export const renderUI = () => `<!DOCTYPE html>
     <div class="glass-card" style="width:100%;max-width:900px;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;max-height:90vh;overflow-y:auto">
       <h2 class="form-title" style="margin-bottom:0">
         <i data-lucide="clipboard-paste" class="logo-icon" style="width:1.25rem;height:1.25rem;color:var(--color-accent)"></i>
-        Quick Add from Perpusnas
+        Tambah Cepat dari Perpusnas
       </h2>
       <p style="font-size:0.8125rem;color:var(--text-muted);margin:0">Paste data tabel permohonan ISBN dari web Perpusnas. Sistem akan otomatis memparse data buku.</p>
       <textarea id="quickAddInput" class="form-control" rows="8" placeholder="Paste data tabel permohonan ISBN dari web Perpusnas di sini..." style="font-family:monospace;font-size:0.8125rem;resize:vertical"></textarea>
@@ -336,7 +336,7 @@ export const renderUI = () => `<!DOCTYPE html>
         <button type="button" class="btn btn-danger" onclick="closeQuickAddModal()">Batal</button>
         <button type="button" class="btn btn-primary" id="btnParseData" onclick="handleParseData()">
           <i data-lucide="search" style="width:1rem;height:1rem"></i>
-          Parse Data
+          Proses Data
         </button>
       </div>
       <div id="quickAddPreview" style="display:none;border-top:1px dashed rgba(255,255,255,0.08);padding-top:1rem">
@@ -363,22 +363,22 @@ export const renderUI = () => `<!DOCTYPE html>
     <div class="glass-card" style="width:100%;max-width:500px;padding:2rem;display:flex;flex-direction:column;gap:1.5rem;max-height:90vh;overflow-y:auto">
       <h2 class="form-title">
         <i data-lucide="edit-3" class="logo-icon" style="width:1.25rem;height:1.25rem;color:var(--color-primary)"></i>
-        Edit Book Details
+        Edit Detail Buku
       </h2>
       <form id="editBookForm" onsubmit="handleSaveBookEdit(event)">
         <input type="hidden" id="editBookId">
         <div class="form-group">
-          <label for="editTitle">Book Title *</label>
+          <label for="editTitle">Judul Buku *</label>
           <input type="text" id="editTitle" class="form-control" required>
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label for="editPublisher">Publisher</label>
+            <label for="editPublisher">Penerbit</label>
             <input type="text" id="editPublisher" class="form-control" list="editPublisherList">
           </div>
           <datalist id="editPublisherList"></datalist>
           <div class="form-group">
-            <label for="editAuthor">Author</label>
+            <label for="editAuthor">Pengarang</label>
             <input type="text" id="editAuthor" class="form-control">
           </div>
         </div>
@@ -401,22 +401,22 @@ export const renderUI = () => `<!DOCTYPE html>
             </select>
           </div>
           <div class="form-group">
-            <label for="editIsbn">ISBN Number</label>
+            <label for="editIsbn">Nomor ISBN</label>
             <input type="text" id="editIsbn" class="form-control" placeholder="e.g. 978-602-...">
           </div>
         </div>
         <div style="margin:0.5rem 0 1rem 0;border-top:1px dashed rgba(255,255,255,0.05);padding-top:0.75rem">
-          <label style="display:block;font-size:0.8125rem;font-weight:600;color:var(--color-primary);margin-bottom:0.5rem">Advanced Routing Override</label>
+          <label style="display:block;font-size:0.8125rem;font-weight:600;color:var(--color-primary);margin-bottom:0.5rem">Pengaturan Lanjutan Notifikasi</label>
           <div class="form-group">
-            <label for="editNtfyTopic">ntfy Topic Override</label>
+            <label for="editNtfyTopic">Topik ntfy Khusus</label>
             <input type="text" id="editNtfyTopic" class="form-control" placeholder="e.g. my-custom-topic">
           </div>
           <div class="form-group">
-            <label for="editTgChatId">Telegram Chat ID Override</label>
+            <label for="editTgChatId">Chat ID Telegram Khusus</label>
             <input type="text" id="editTgChatId" class="form-control" placeholder="e.g. -100123456789">
           </div>
           <div class="form-group">
-            <label for="editWebhookUrl">Webhook URL Override</label>
+            <label for="editWebhookUrl">URL Webhook Khusus</label>
             <input type="url" id="editWebhookUrl" class="form-control" placeholder="e.g. https://api.myweb.com/hook">
           </div>
         </div>

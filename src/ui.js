@@ -541,8 +541,8 @@ function renderBooksTable() {
     return `
       <tr>
         <td data-label="No." style="text-align:center;color:var(--text-muted);font-size:0.8125rem;width:50px">${globalOffset + idx + 1}</td>
-        <td data-label="Title"><div style="font-weight:600;color:var(--text-main)">${escapeHtml(book.title)}</div></td>
-        <td data-label="Author / Publisher">
+        <td data-label="Judul"><div style="font-weight:600;color:var(--text-main)">${escapeHtml(book.title)}</div></td>
+        <td data-label="Pengarang / Penerbit">
           <div style="font-size:0.8125rem;color:var(--text-main)">A: ${escapeHtml(authorStr)}</div>
           <div style="font-size:0.75rem;color:var(--text-muted)">P: ${escapeHtml(pubStr)}</div>
           <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem">${escapeHtml(dateInfo)}</div>
@@ -554,12 +554,12 @@ function renderBooksTable() {
           </span>
         </td>
         <td data-label="ISBN">${isbnDisplay}</td>
-        <td data-label="Actions" class="text-right">
+        <td data-label="Aksi" class="text-right">
           <div class="flex-actions">
-            <button type="button" class="btn btn-icon" onclick="openEditModal(${book.id})" aria-label="Edit book ${book.id}" style="color:var(--color-primary);border-color:rgba(59,130,246,0.2)">
+            <button type="button" class="btn btn-icon" onclick="openEditModal(${book.id})" aria-label="Edit buku ${book.id}" style="color:var(--color-primary);border-color:rgba(59,130,246,0.2)">
               <i data-lucide="edit-3" style="width:1rem;height:1rem"></i>
             </button>
-            <button type="button" class="btn btn-danger" onclick="handleDeleteBook(${book.id})" aria-label="Delete book ${book.id}">
+            <button type="button" class="btn btn-danger" onclick="handleDeleteBook(${book.id})" aria-label="Hapus buku ${book.id}">
               <i data-lucide="trash" style="width:1rem;height:1rem"></i>
             </button>
           </div>
@@ -585,7 +585,7 @@ function renderPagination(total, totalPages) {
   };
 
   let html = '';
-  html += makeBtn('Prev', currentPage - 1, currentPage <= 1, false);
+  html += makeBtn('Sebelumnya', currentPage - 1, currentPage <= 1, false);
 
   for (let i = 1; i <= totalPages; i++) {
     if (totalPages > 7 && i > 2 && i < totalPages - 1 && Math.abs(i - currentPage) > 1) {
@@ -595,7 +595,7 @@ function renderPagination(total, totalPages) {
     html += makeBtn(i, i, false, i === currentPage);
   }
 
-  html += makeBtn('Next', currentPage + 1, currentPage >= totalPages, false);
+  html += makeBtn('Berikutnya', currentPage + 1, currentPage >= totalPages, false);
   html += `<span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem">${total} data</span>`;
   container.innerHTML = html;
 }
