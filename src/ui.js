@@ -1,5 +1,7 @@
 let booksData = [];
 let currentStatusFilter = 'all';
+let currentPage = 1;
+let pageSize = 10;
 
 // ---- Helpers ----
 
@@ -260,10 +262,24 @@ async function handleDeleteBook(id) {
   }
 }
 
+// ---- Pagination ----
+
+function changePageSize(size) {
+  pageSize = size === 'all' ? 9999 : parseInt(size);
+  currentPage = 1;
+  renderBooksTable();
+}
+
+function goToPage(page) {
+  currentPage = page;
+  renderBooksTable();
+}
+
 // ---- Status Filter ----
 
 function filterByStatus(status) {
   currentStatusFilter = status;
+  currentPage = 1;
   renderBooksTable();
 }
 
@@ -489,7 +505,15 @@ function renderBooksTable() {
     filtered = filtered.filter(b => b.status === currentStatusFilter);
   }
 
-  if (filtered.length === 0) {
+  // Pagination
+  const totalItems = filtered.length;
+  const totalPages = pageSize >= totalItems ? 1 : Math.ceil(totalItems / pageSize);
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+  const startIdx = (currentPage - 1) * pageSize;
+  const paged = filtered.slice(startIdx, startIdx + pageSize);
+
+  if (paged.length === 0) {
     body.innerHTML = `
       <tr>
         <td colspan="6">
@@ -499,11 +523,13 @@ function renderBooksTable() {
           </div>
         </td>
       </tr>`;
+    renderPagination(totalItems, totalPages);
     lucide.createIcons();
     return;
   }
 
-  body.innerHTML = filtered.map((book, index) => {
+  const globalOffset = startIdx;
+  body.innerHTML = paged.map((book, idx) => {
     const isCompleted = book.status === 'COMPLETED';
     const authorStr = book.author || '-';
     const pubStr = book.publisher || '-';
@@ -514,7 +540,7 @@ function renderBooksTable() {
 
     return `
       <tr>
-        <td data-label="No." style="text-align:center;color:var(--text-muted);font-size:0.8125rem;width:50px">${index + 1}</td>
+        <td data-label="No." style="text-align:center;color:var(--text-muted);font-size:0.8125rem;width:50px">${globalOffset + idx + 1}</td>
         <td data-label="Title"><div style="font-weight:600;color:var(--text-main)">${escapeHtml(book.title)}</div></td>
         <td data-label="Author / Publisher">
           <div style="font-size:0.8125rem;color:var(--text-main)">A: ${escapeHtml(authorStr)}</div>
@@ -541,6 +567,37 @@ function renderBooksTable() {
       </tr>`;
   }).join('');
   lucide.createIcons();
+  renderPagination(totalItems, totalPages);
+}
+
+function renderPagination(total, totalPages) {
+  const container = document.getElementById('pageButtons');
+  const controls = document.getElementById('paginationControls');
+  if (!container || !controls) return;
+  container.innerHTML = '';
+  if (total === 0) { controls.style.display = 'none'; return; }
+  controls.style.display = 'flex';
+
+  const makeBtn = (label, page, disabled, active) => {
+    const cls = active ? 'btn btn-primary' : 'btn';
+    const style = active ? '' : 'style="font-size:0.75rem;padding:0.25rem 0.5rem"';
+    return `<button type="button" class="${cls}" ${style} onclick="goToPage(${page})" ${disabled ? 'disabled' : ''}>${label}</button>`;
+  };
+
+  let html = '';
+  html += makeBtn('Prev', currentPage - 1, currentPage <= 1, false);
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (totalPages > 7 && i > 2 && i < totalPages - 1 && Math.abs(i - currentPage) > 1) {
+      if (i === 3 || i === totalPages - 2) html += '<span style="padding:0 0.25rem;color:var(--text-muted)">...</span>';
+      continue;
+    }
+    html += makeBtn(i, i, false, i === currentPage);
+  }
+
+  html += makeBtn('Next', currentPage + 1, currentPage >= totalPages, false);
+  html += `<span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem">${total} data</span>`;
+  container.innerHTML = html;
 }
 
 // ---- Average Time ----

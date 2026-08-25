@@ -216,6 +216,19 @@ export const renderUI = () => `<!DOCTYPE html>
             <tbody id="booksListBody"></tbody>
           </table>
         </div>
+        <div id="paginationControls" style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 1rem;border-top:1px solid rgba(255,255,255,0.05);flex-wrap:wrap;gap:0.5rem">
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <span style="font-size:0.8125rem;color:var(--text-muted)">Tampilkan</span>
+            <select id="pageSizeSelect" class="form-control" onchange="changePageSize(this.value)" style="background:rgba(15,23,42,0.8);cursor:pointer;font-size:0.8125rem;padding:0.25rem 0.5rem;width:auto">
+              <option value="10">10</option>
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="all">Semua</option>
+            </select>
+            <span style="font-size:0.8125rem;color:var(--text-muted)">data</span>
+          </div>
+          <div id="pageButtons" style="display:flex;gap:0.25rem;align-items:center"></div>
+        </div>
       </section>
     </div>
 
