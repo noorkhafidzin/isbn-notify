@@ -578,6 +578,219 @@ function calculateAverageTime() {
   }
 }
 
+// ---- Quick Add from Perpusnas ----
+
+function openQuickAddModal() {
+  const modal = document.getElementById('quickAddModal');
+  if (!modal) return;
+  document.getElementById('quickAddInput').value = '';
+  document.getElementById('quickAddPreview').style.display = 'none';
+  document.getElementById('quickAddBooksList').innerHTML = '';
+  modal.style.display = 'flex';
+  setTimeout(() => { modal.style.opacity = '1'; }, 50);
+  document.getElementById('quickAddInput').focus();
+}
+
+function closeQuickAddModal() {
+  const modal = document.getElementById('quickAddModal');
+  if (!modal) return;
+  modal.style.opacity = '0';
+  setTimeout(() => { modal.style.display = 'none'; }, 300);
+}
+
+function parsePerpusnasData(text) {
+  const lines = text.split('\n');
+  const books = [];
+  let current = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const parts = trimmed.split('\t');
+
+    // New entry: line starts with a number + tab
+    if (/^\d+\t/.test(trimmed)) {
+      if (current) books.push(current);
+      current = {
+        no_resi: parts[2] || '',
+        title: '',
+        author: '',
+        submission_date: '',
+        peruntukan: ''
+      };
+      continue;
+    }
+
+    if (!current) continue;
+
+    // Title line: starts with 'web'
+    if (parts[0] && parts[0].toLowerCase().startsWith('web')) {
+      current.title = parts.slice(1).join(' ').trim();
+      continue;
+    }
+
+    // Author/details line: starts with peruntukan like 'lepas Cetak', 'saku', etc.
+    if (parts.length >= 5) {
+      current.peruntukan = parts[0] || '';
+      // Author is in parts[1], clean it up
+      const rawAuthor = parts[1] || '';
+      current.author = rawAuthor
+        .split(';')
+        .map(s => s.replace(/^(penulis|editor),\s*/i, '').trim())
+        .filter(s => s.length > 0)
+        .join('; ');
+      // Date is in parts[5], format: '8/24/2026 5:42:03 PM'
+      const rawDate = parts[5] || '';
+      current.submission_date = convertToDateFormat(rawDate);
+    }
+  }
+  if (current) books.push(current);
+
+  return books.filter(b => b.title.length > 0);
+}
+
+function convertToDateFormat(dateStr) {
+  if (!dateStr) return '';
+  // Parse '8/24/2026 5:42:03 PM'
+  const match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!match) return '';
+  const [, month, day, year] = match;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
+let parsedBooksData = [];
+
+function handleParseData() {
+  const text = document.getElementById('quickAddInput').value;
+  if (!text.trim()) {
+    showAlert('Silakan paste data terlebih dahulu.', 'error');
+    return;
+  }
+
+  parsedBooksData = parsePerpusnasData(text);
+  if (parsedBooksData.length === 0) {
+    showAlert('Tidak ada data buku yang terdeteksi. Pastikan format data sesuai dengan tabel Perpusnas.', 'error');
+    return;
+  }
+
+  showParsedBooks(parsedBooksData);
+  document.getElementById('quickAddPreview').style.display = 'block';
+}
+
+function showParsedBooks(books) {
+  const container = document.getElementById('quickAddBooksList');
+  container.innerHTML = '';
+
+  books.forEach((book, index) => {
+    const div = document.createElement('div');
+    div.className = 'glass-card';
+    div.style.cssText = 'padding:0.75rem;border:1px solid rgba(255,255,255,0.06);gap:0.75rem';
+    div.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:0.75rem">
+        <input type="checkbox" class="quick-add-checkbox" data-index="${index}" checked
+          onchange="updateQuickAddSelectedCount()" style="margin-top:0.25rem;accent-color:var(--color-primary)">
+        <div style="flex:1;display:flex;flex-direction:column;gap:0.5rem">
+          <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+            <span style="font-size:0.7rem;background:rgba(59,130,246,0.1);color:var(--color-primary);padding:2px 8px;border-radius:4px">No. Resi: ${escapeHtml(book.no_resi)}</span>
+            <span style="font-size:0.7rem;background:rgba(16,185,129,0.1);color:var(--color-success);padding:2px 8px;border-radius:4px">${escapeHtml(book.peruntukan)}</span>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:0.75rem;color:var(--text-muted)">Judul Buku</label>
+            <input type="text" class="form-control quick-add-field-title" value="${escapeHtml(book.title)}" style="font-size:0.8125rem;padding:0.375rem 0.5rem">
+          </div>
+          <div style="display:flex;gap:0.75rem">
+            <div class="form-group" style="margin:0;flex:2">
+              <label style="font-size:0.75rem;color:var(--text-muted)">Pengarang</label>
+              <input type="text" class="form-control quick-add-field-author" value="${escapeHtml(book.author)}" style="font-size:0.8125rem;padding:0.375rem 0.5rem">
+            </div>
+            <div class="form-group" style="margin:0;flex:1">
+              <label style="font-size:0.75rem;color:var(--text-muted)">Tanggal Pengajuan</label>
+              <input type="date" class="form-control quick-add-field-date" value="${book.submission_date}" style="font-size:0.8125rem;padding:0.375rem 0.5rem">
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+
+  updateQuickAddSelectedCount();
+}
+
+function updateQuickAddSelectedCount() {
+  const checkboxes = document.querySelectorAll('.quick-add-checkbox:checked');
+  document.getElementById('quickAddSelectedCount').textContent = checkboxes.length;
+  document.getElementById('quickAddCount').textContent = `${checkboxes.length} dari ${parsedBooksData.length} buku akan ditambahkan`;
+}
+
+function toggleSelectAllQuickAdd() {
+  const checkboxes = document.querySelectorAll('.quick-add-checkbox');
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  checkboxes.forEach(cb => cb.checked = !allChecked);
+  updateQuickAddSelectedCount();
+}
+
+async function handleQuickAddSubmit() {
+  const apiKey = getApiKey();
+  if (!apiKey) return;
+
+  const cards = document.querySelectorAll('#quickAddBooksList > div');
+  const selectedBooks = [];
+
+  cards.forEach((card, index) => {
+    const checkbox = card.querySelector('.quick-add-checkbox');
+    if (!checkbox || !checkbox.checked) return;
+
+    selectedBooks.push({
+      title: card.querySelector('.quick-add-field-title').value.trim(),
+      author: card.querySelector('.quick-add-field-author').value.trim() || null,
+      submission_date: card.querySelector('.quick-add-field-date').value || null
+    });
+  });
+
+  if (selectedBooks.length === 0) {
+    showAlert('Tidak ada buku yang dipilih.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btnQuickAddSubmit');
+  btn.disabled = true;
+  let successCount = 0;
+  let failCount = 0;
+
+  try {
+    for (const book of selectedBooks) {
+      try {
+        const res = await fetch('/books', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
+          body: JSON.stringify(book),
+        });
+        const data = await res.json();
+        if (data.success) successCount++;
+        else failCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      showAlert(`${successCount} buku berhasil didaftarkan untuk dilacak!${failCount > 0 ? ` (${failCount} gagal)` : ''}`, 'success');
+      loadBooks();
+    } else {
+      showAlert('Gagal mendaftarkan buku.', 'error');
+    }
+
+    closeQuickAddModal();
+  } catch (err) {
+    console.error(err);
+    showAlert('Terjadi kesalahan koneksi.', 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ---- Alert Banners ----
 
 function showAlert(message, type = 'success') {

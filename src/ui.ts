@@ -124,6 +124,13 @@ export const renderUI = () => `<!DOCTYPE html>
           <i data-lucide="plus-circle" class="logo-icon" style="width:1.25rem;height:1.25rem"></i>
           Register New Book
         </h2>
+        <div style="margin-bottom:1.25rem;display:flex;flex-direction:column;gap:0.75rem">
+          <button type="button" class="btn btn-accent w-full" onclick="openQuickAddModal()">
+            <i data-lucide="clipboard-paste" style="width:1.1rem;height:1.1rem"></i>
+            Quick Add from Perpusnas
+          </button>
+          <div style="text-align:center;font-size:0.75rem;color:var(--text-muted)">atau daftar manual di bawah ini</div>
+        </div>
         <form id="addBookForm" onsubmit="handleAddBook(event)">
           <div class="form-group">
             <label for="title">Book Title *</label>
@@ -291,6 +298,41 @@ export const renderUI = () => `<!DOCTYPE html>
             <button type="submit" id="btnSaveSettings" form="settingsNotifForm" style="display:none"></button>
           </div>
         </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Add Modal -->
+  <div id="quickAddModal" class="login-overlay" style="display:none;opacity:0;z-index:var(--z-modal)">
+    <div class="glass-card" style="width:100%;max-width:900px;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;max-height:90vh;overflow-y:auto">
+      <h2 class="form-title" style="margin-bottom:0">
+        <i data-lucide="clipboard-paste" class="logo-icon" style="width:1.25rem;height:1.25rem;color:var(--color-accent)"></i>
+        Quick Add from Perpusnas
+      </h2>
+      <p style="font-size:0.8125rem;color:var(--text-muted);margin:0">Paste data tabel permohonan ISBN dari web Perpusnas. Sistem akan otomatis memparse data buku.</p>
+      <textarea id="quickAddInput" class="form-control" rows="8" placeholder="Paste data tabel permohonan ISBN dari web Perpusnas di sini..." style="font-family:monospace;font-size:0.8125rem;resize:vertical"></textarea>
+      <div style="display:flex;gap:0.75rem;justify-content:flex-end">
+        <button type="button" class="btn btn-danger" onclick="closeQuickAddModal()">Batal</button>
+        <button type="button" class="btn btn-primary" id="btnParseData" onclick="handleParseData()">
+          <i data-lucide="search" style="width:1rem;height:1rem"></i>
+          Parse Data
+        </button>
+      </div>
+      <div id="quickAddPreview" style="display:none;border-top:1px dashed rgba(255,255,255,0.08);padding-top:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+          <span id="quickAddCount" style="font-size:0.8125rem;color:var(--text-muted)"></span>
+          <div style="display:flex;gap:0.5rem">
+            <button type="button" class="btn btn-accent" onclick="toggleSelectAllQuickAdd()" style="padding:0.375rem 0.75rem;font-size:0.75rem">Pilih Semua</button>
+          </div>
+        </div>
+        <div id="quickAddBooksList" style="display:flex;flex-direction:column;gap:0.75rem;max-height:400px;overflow-y:auto"></div>
+        <div style="display:flex;gap:0.75rem;justify-content:flex-end;margin-top:1rem;border-top:1px dashed rgba(255,255,255,0.08);padding-top:1rem">
+          <button type="button" class="btn btn-danger" onclick="closeQuickAddModal()">Batal</button>
+          <button type="button" class="btn btn-primary" id="btnQuickAddSubmit" onclick="handleQuickAddSubmit()">
+            <i data-lucide="plus-circle" style="width:1rem;height:1rem"></i>
+            Tambahkan <span id="quickAddSelectedCount">0</span> Buku
+          </button>
+        </div>
       </div>
     </div>
   </div>
