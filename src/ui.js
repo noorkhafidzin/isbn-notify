@@ -487,7 +487,7 @@ function renderBooksTable() {
   if (filtered.length === 0) {
     body.innerHTML = `
       <tr>
-        <td colspan="5">
+        <td colspan="6">
           <div class="empty-state">
             <i data-lucide="inbox" class="empty-icon"></i>
             <p>Tidak ada buku dalam pelacakan.</p>
@@ -498,7 +498,7 @@ function renderBooksTable() {
     return;
   }
 
-  body.innerHTML = filtered.map(book => {
+  body.innerHTML = filtered.map((book, index) => {
     const isCompleted = book.status === 'COMPLETED';
     const authorStr = book.author || '-';
     const pubStr = book.publisher || '-';
