@@ -479,10 +479,15 @@ function renderBooksTable() {
   const body = document.getElementById('booksListBody');
   const search = document.getElementById('searchQuery').value.toLowerCase();
 
-  const filtered = booksData.filter(b =>
+  let filtered = booksData.filter(b =>
     (b.title && b.title.toLowerCase().includes(search)) ||
     (b.publisher && b.publisher.toLowerCase().includes(search))
   );
+
+  // Apply status filter
+  if (currentStatusFilter !== "all") {
+    filtered = filtered.filter(b => b.status === currentStatusFilter);
+  }
 
   if (filtered.length === 0) {
     body.innerHTML = `
