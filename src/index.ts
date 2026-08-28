@@ -353,11 +353,21 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
       const significantWords = (s: string): string[] =>
         s.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length >= 3);
 
-      const wordOverlap = (a: string, b: string): number => {
+      // Bidirectional title similarity: checks overlap in BOTH directions.
+      // Forward: what fraction of tracked-title words appear in API result
+      // Reverse: what fraction of API-result words appear in tracked title
+      const titleSimilarity = (a: string, b: string): { forward: number; reverse: number } => {
         const wa = new Set(significantWords(a));
-        const wb = significantWords(b);
-        if (wa.size === 0) return 0;
-        return wb.filter(w => wa.has(w)).length / wa.size;
+        const wb = new Set(significantWords(b));
+        if (wa.size === 0 || wb.size === 0) return { forward: 0, reverse: 0 };
+        let intersection = 0;
+        for (const w of wa) {
+          if (wb.has(w)) intersection++;
+        }
+        return {
+          forward: intersection / wa.size,
+          reverse: intersection / wb.size,
+        };
       };
 
       const stripHonorifics = (s: string): string =>
@@ -366,38 +376,68 @@ export async function checkIsbns(env: Env): Promise<{ checked: number; found: nu
 
       // Find match in returned data
       for (const item of dataList) {
+        let titleScore = { forward: 0, reverse: 0 };
+        let pubVerified = false;
+        let authVerified = false;
         let isTitleMatch = false;
 
-        // Word-overlap matching: tolerate truncated or slightly different titles
+        // --- STEP 1: Title matching (primary signal) ---
         if (item.title && book.title) {
-          const score = wordOverlap(book.title, item.title);
-          isTitleMatch = score >= 0.5; // ≥50% tracked-title words appear in API result
+          titleScore = titleSimilarity(book.title, item.title);
+          isTitleMatch = titleScore.forward >= 0.7 && titleScore.reverse >= 0.6;
+          if (titleScore.forward >= 0.5 && !isTitleMatch) {
+            console.log(`  Title near-miss: "${item.title}" (fwd=${titleScore.forward.toFixed(2)}, rev=${titleScore.reverse.toFixed(2)}) — skipped`);
+          }
         }
 
-        // Match publisher (case insensitive, normalize common prefixes)
+        // --- STEP 2: Publisher verification (when data available on both sides) ---
         if (isTitleMatch && book.publisher && item.nama_penerbit) {
           const normTracked = book.publisher.toLowerCase().replace(/^(pt|cv|penerbit|percetakan)\s*/i, '').trim();
           const normApi = item.nama_penerbit.toLowerCase().replace(/^(pt|cv|penerbit|percetakan)\s*/i, '').trim();
-          if (normTracked && normApi && wordOverlap(normTracked, normApi) < 0.4) {
-            isTitleMatch = false;
+          if (normTracked && normApi) {
+            const pubSim = titleSimilarity(normTracked, normApi);
+            pubVerified = pubSim.forward >= 0.3 || pubSim.reverse >= 0.3;
+            if (!pubVerified) {
+              console.log(`  Publisher mismatch: tracked="${normTracked}" vs api="${normApi}" (fwd=${pubSim.forward.toFixed(2)}, rev=${pubSim.reverse.toFixed(2)}) — rejected`);
+              isTitleMatch = false;
+            } else {
+              console.log(`  Publisher verified: "${normApi}"`);
+            }
           }
+        } else if (isTitleMatch) {
+          pubVerified = true;
         }
 
-        // Match author (case insensitive, strip honorifics/degrees)
+        // --- STEP 3: Author verification (when data available on both sides) ---
         if (isTitleMatch && book.author && item.kepeng) {
           const normTracked = stripHonorifics(book.author.toLowerCase());
           const normApi = stripHonorifics(item.kepeng.toLowerCase());
-          if (normTracked && normApi && wordOverlap(normTracked, normApi) < 0.4) {
-            isTitleMatch = false;
+          if (normTracked && normApi) {
+            const authSim = titleSimilarity(normTracked, normApi);
+            authVerified = authSim.forward >= 0.3 || authSim.reverse >= 0.3;
+            if (!authVerified) {
+              console.log(`  Author mismatch: tracked="${normTracked}" vs api="${normApi.substring(0, 80)}" (fwd=${authSim.forward.toFixed(2)}, rev=${authSim.reverse.toFixed(2)}) — rejected`);
+              isTitleMatch = false;
+            } else {
+              console.log(`  Author verified: "${normApi.substring(0, 60)}"`);
+            }
           }
+        } else if (isTitleMatch) {
+          authVerified = true;
         }
 
+        // --- STEP 4: Accept match ---
         if (isTitleMatch) {
-          // Extract ISBN
           const rawIsbn = item.isbn || item.code;
           if (rawIsbn && rawIsbn.trim() !== '' && rawIsbn.trim() !== '-') {
             hasFoundIsbn = true;
             foundIsbnStr = rawIsbn.trim();
+            const signals = [
+              `title(f=${titleScore.forward.toFixed(2)},r=${titleScore.reverse.toFixed(2)})`,
+              pubVerified ? 'publisher✓' : null,
+              authVerified ? 'author✓' : null,
+            ].filter(Boolean).join(' + ');
+            console.log(`  ✓ Matched: "${item.title}" → ISBN ${foundIsbnStr} [${signals}]`);
             break;
           }
         }
