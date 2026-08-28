@@ -323,6 +323,12 @@ export const renderUI = () => `<!DOCTYPE html>
     </div>
   </div>
 
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <p>Dibuat dengan ❤️ oleh <a href="https://github.com/noorkhafidzin/isbn-notify" target="_blank" rel="noopener noreferrer">Noor Khafidzin</a> · ISBN Notify</p>
+    </footer>
+
   <!-- Quick Add Modal -->
   <div id="quickAddModal" class="login-overlay" style="display:none;opacity:0;z-index:var(--z-modal)">
     <div class="glass-card" style="width:100%;max-width:900px;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;max-height:90vh;overflow-y:auto">
