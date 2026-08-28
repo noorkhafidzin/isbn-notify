@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.2.8] - 2026-08-28
+
+### Fixed
+- **Title Matching — false positiveISBN salah pada buku berjudul mirip**: Algoritma pencocokan judul (title matching) pada `checkIsbns()` diperkuat untuk mencegah match terhadap buku yang salah. Perubahan utama:
+  - **Bidirectional scoring**: Fungsi `wordOverlap` (satu arah) diganti `titleSimilarity` yang menghitung overlap di kedua arah (forward ≥0.7, reverse ≥0.6). Sebelumnya hanya 50% forward yang diperiksa, sehingga buku dengan judul subset (lebih pendek) bisa lolos.
+  - **Publisher verification**: Jika data penerbit tersedia di kedua sisi, harus ada minimal 30% overlap (salah satu arah). Mencegah match ke buku penerbit berbeda.
+  - **Author verification**: Jika data pengarang tersedia di kedua sisi, harus ada minimal 30% overlap. Publisher dan author kini berfungsi sebagai verification gate, bukan hanya penolak.
+  - **Detailed logging**: Console server kini menampilkan skor forward/reverse, status publisher/author, dan sinyal yang berkontribusi pada match.
+
+### Changed
+- **Mobile Layout — reorder section**: Urutan tampilan mobile (<1024px) diubah menjadi: Stats → Analisis Waktu Terbit → Input (Daftar Buku) → Tabel Pelacakan. Sebelumnya: Stats → Tabel → Input → Analisis.
+
+### Added
+- **Footer**: Tambahkan footer di bagian bawah dashboard dengan attribusi link ke GitHub repository (https://github.com/noorkhafidzin/isbn-notify).
+
+---
+
 ## [1.2.7] - 2026-08-05
 
 ### Added

@@ -1,7 +1,7 @@
 # Blueprint — isbn-notify
 
-- **Version:** v1.2.7
-- **Last Updated:** 2026-08-05
+- **Version:** v1.2.8
+- **Last Updated:** 2026-08-28
 - **Tech Stack:** Node.js, Hono, JSON Database (books.json), TypeScript
 
 ---
@@ -39,10 +39,11 @@ export interface Book {
 1. Pengguna memasukkan judul buku (dan opsional penerbit/author/notifikasi khusus) via `POST /books`. Data ditambahkan ke array dengan status `PENDING`.
 2. Internal scheduler melacak setiap buku berstatus `PENDING` dengan menembak API Perpusnas:
    `https://isbn.perpusnas.go.id/landing_page/serverside_search2?search={title}&filter_by=title`
-3. **Pencocokan Fuzzy (Word-Overlap Scoring — v1.2.0+):**
-   - Judul: kata-kata signifikan (≥3 huruf) diekstrak dari judul tracked, lalu dihitung tumpang tindihnya dengan judul hasil API. Minimal 50% kata kunci harus cocok (toleran terhadap judul terpotong/berbeda).
-   - Penerbit: prefix "PT"/"CV"/"Penerbit"/"Percetakan" dinormalisasi, lalu diukur overlap minimal 40%.
-   - Penulis: gelar akademik (Ps., Ir., M.Th., dll.) dan tanda baca otomatis di-strip sebelum pembandingan overlap minimal 40%.
+3. **Pencocokan Fuzzy (Bidirectional Title Similarity + Verification — v1.2.8+):**
+   - **Judul (Title)**: Kata-kata signifikan (≥3 huruf) diekstrak dari judul tracked dan judul API. Skor dihitung di kedua arah: forward (kata tracked muncul di API, ≥0.7) dan reverse (kata API muncul di tracked, ≥0.6). Threshold dinaikkan dari 50% (satu arah) menjadi 70%+60% (dua arah) untuk mengurangi false positive.
+   - **Penerbit (Publisher)**: Jika data penerbit tersedia di kedua sisi, harus ada minimal 30% overlap (salah satu arah). Prefix "PT"/"CV"/"Penerbit"/"Percetakan" dinormalisasi. Jika data kosong di salah satu sisi, verifikasi di-skip.
+   - **Penulis (Author)**: Jika data pengarang tersedia di kedua sisi, harus ada minimal 30% overlap. Gelar akademik (Ps., Ir., M.Th., dll.) dan tanda baca otomatis di-strip. Jika data kosong di salah satu sisi, verifikasi di-skip.
+   - **Logging**: Console server menampilkan skor forward/reward, status publisher/author verification, dan sinyal yang berkontribusi pada match.
 4. Bila match ditemukan, nomor ISBN diekstrak.
 5. Status diperbarui ke `COMPLETED`, field `isbn` diisi, dan notifikasi dikirim ke channel yang ditentukan. Buku dengan status `COMPLETED` tidak diproses kembali pada putaran berikutnya.
 
@@ -154,6 +155,6 @@ Aplikasi ini menggunakan Single Page App (SPA) dashboard yang dilindungi oleh **
 ## 7. Responsive Mobile Layout (Web UI & UX)
 
 Dashboard Web UI dirancang secara responsif dan dioptimalkan secara khusus untuk perangkat mobile/seluler:
-- **Priority Stack Order**: Pada lebar viewport <= 1024px, tata letak grid dashboard (`.dashboard-grid`) otomatis diubah susunannya secara bertumpuk dengan prioritas: metrik status (Stats Panel) di bagian paling atas, diikuti oleh daftar pelacakan (Tracking List), formulir registrasi buku baru (Register Panel), dan modul rata-rata waktu terbit (Analysis Panel) di bagian paling bawah.
+- **Priority Stack Order**: Pada lebar viewport <= 1024px, tata letak grid dashboard (`.dashboard-grid`) otomatis diubah susunannya secara bertumpuk dengan prioritas: metrik status (Stats Panel) di bagian paling atas, diikuti oleh modul rata-rata waktu terbit (Analysis Panel), formulir registrasi buku baru (Register Panel), dan daftar pelacakan (Tracking List) di bagian paling bawah. Footer dengan attribusi GitHub repository ditampilkan di akhir halaman.
 - **Table-to-Cards Transformation**: Pada layar <= 768px, tabel daftar pelacakan (`table#booksTable`) bertransformasi menjadi daftar kartu vertikal (cards block list) yang terstruktur rapi. Pseudo-element CSS `td::before { content: attr(data-label); }` digunakan untuk menyisipkan nama kolom secara dinamis di sebelah kiri, mencegah scroll horizontal pada perangkat kecil.
 - **Peningkatan Touch Target**: Elemen navigasi tab, input modal, form row, dan checkbox jam scheduler dirancang responsif dengan class `.form-row` dan grid kolom dinamis untuk memastikan ukuran area tap (touch target) berskala minimal 44x44px, mencegah salah tekan pada perangkat sentuh.
