@@ -3,6 +3,13 @@ let currentStatusFilter = 'all';
 let currentPage = 1;
 let pageSize = 10;
 
+// The three states R-27 requires, kept explicit so the table never has to
+// guess whether "no rows" means loading, empty, or broken.
+let listState = 'loading'; // 'loading' | 'ready' | 'error'
+let listErrorMessage = '';
+
+const STATUS_LABEL = { PENDING: 'Diajukan', COMPLETED: 'Terbit' };
+
 // ---- Helpers ----
 
 function getApiKey() {
@@ -11,7 +18,7 @@ function getApiKey() {
 
 function escapeHtml(str) {
   if (!str) return '';
-  return str
+  return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -26,12 +33,98 @@ function formatDate(d) {
   return `${year}-${month}-${day}`;
 }
 
-// ---- Publisher Suggestions ----
+function el(id) {
+  return document.getElementById(id);
+}
+
+function icons() {
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// ---- Theme ----
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem('isbn_notify_theme', theme); } catch (e) {}
+  const btn = el('btnTheme');
+  if (btn) {
+    btn.setAttribute('aria-label', theme === 'dark' ? 'Beralih ke tema terang' : 'Beralih ke tema gelap');
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+// ---- Modal plumbing: focus trap, Escape, focus restore ----
+
+let activeModal = null;
+let lastFocusedBeforeModal = null;
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function focusablesIn(container) {
+  return Array.from(container.querySelectorAll(FOCUSABLE))
+    .filter(node => node.offsetParent !== null);
+}
+
+function openModal(modalId) {
+  const modal = el(modalId);
+  if (!modal) return;
+  lastFocusedBeforeModal = document.activeElement;
+  modal.hidden = false;
+  activeModal = modalId;
+  const first = focusablesIn(modal)[0];
+  if (first) first.focus();
+  document.addEventListener('keydown', onModalKeydown);
+}
+
+function closeModal(modalId) {
+  const modal = el(modalId);
+  if (!modal) return;
+  modal.hidden = true;
+  if (activeModal === modalId) activeModal = null;
+  document.removeEventListener('keydown', onModalKeydown);
+  if (lastFocusedBeforeModal && lastFocusedBeforeModal.focus) {
+    lastFocusedBeforeModal.focus();
+  }
+  lastFocusedBeforeModal = null;
+}
+
+function onModalKeydown(e) {
+  if (!activeModal) return;
+  const modal = el(activeModal);
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    if (activeModal === 'quickAddModal') closeQuickAddModal();
+    else closeEditModal();
+    return;
+  }
+
+  // Keep Tab inside the dialog: a modal you can tab out of is not modal.
+  if (e.key === 'Tab') {
+    const items = focusablesIn(modal);
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+}
+
+// ---- Publisher suggestions ----
 
 function refreshPublisherList() {
   const publishers = [...new Set(booksData.map(b => b.publisher).filter(p => p))];
   ['publisherList', 'editPublisherList'].forEach(id => {
-    const dl = document.getElementById(id);
+    const dl = el(id);
     if (!dl) return;
     dl.innerHTML = '';
     publishers.forEach(p => {
@@ -42,52 +135,78 @@ function refreshPublisherList() {
   });
 }
 
-// ---- Schedule Management ----
+// ---- Schedule management ----
 
-function addScheduleEntry(time = "09:00") {
-  const list = document.getElementById('scheduleList');
+function addScheduleEntry(time = '09:00') {
+  const list = el('scheduleList');
   if (!list) return;
-  const id = Date.now() + Math.random();
-  const div = document.createElement('div');
-  div.id = `schedule-${id}`;
-  div.className = 'schedule-entry';
-  div.innerHTML = `
-    <i data-lucide="clock" style="width:1.1rem;height:1.1rem;flex-shrink:0;color:var(--text-muted)"></i>
-    <input type="time" class="form-control schedule-time" value="${time}"
-      style="flex:1;padding:0.375rem 0.5rem;font-size:0.875rem">
-    <button type="button" class="btn-icon" onclick="this.closest('.schedule-entry').remove(); updateWarningVisibility();"
-      title="Hapus">
-      <i data-lucide="trash-2" style="width:1rem;height:1rem"></i>
-    </button>
-  `;
-  list.appendChild(div);
-  if (typeof lucide !== 'undefined') lucide.createIcons();
+
+  const row = document.createElement('div');
+  row.className = 'schedule-entry';
+
+  const input = document.createElement('input');
+  input.type = 'time';
+  input.className = 'form-control';
+  input.value = time;
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'row-btn danger';
+  remove.innerHTML = '<i data-lucide="trash-2" aria-hidden="true"></i>';
+  // .row-btn has no text content, so without this the button has no
+  // accessible name at all.
+  remove.setAttribute('aria-label', `Hapus waktu ${time}`);
+  remove.addEventListener('click', () => {
+    row.remove();
+    updateWarningVisibility();
+    const remaining = focusablesIn(list);
+    (remaining[remaining.length - 1] || el('cfgScheduler')).focus();
+  });
+
+  row.appendChild(input);
+  row.appendChild(remove);
+  list.appendChild(row);
+
+  icons();
   updateWarningVisibility();
+  return input;
 }
 
 function getScheduleTimes() {
-  const inputs = document.querySelectorAll('.schedule-time');
-  return Array.from(inputs).map(i => i.value).filter(v => v);
+  return Array.from(document.querySelectorAll('#scheduleList input[type="time"]'))
+    .map(i => i.value)
+    .filter(v => v);
 }
 
 function updateWarningVisibility() {
-  const count = getScheduleTimes().length;
-  const w = document.getElementById('schedulerWarning');
-  if (w) w.style.display = count > 4 ? 'flex' : 'none';
+  const w = el('schedulerWarning');
+  if (w) w.hidden = getScheduleTimes().length <= 4;
 }
 
 function toggleScheduleContainer() {
-  const val = document.getElementById('cfgScheduler').value;
-  const c = document.getElementById('customScheduleContainer');
-  if (c) c.style.display = val === 'custom' ? 'block' : 'none';
+  const val = el('cfgScheduler').value;
+  const c = el('customScheduleContainer');
+  if (!c) return;
+  c.hidden = val !== 'custom';
+  if (val === 'custom') {
+    const list = el('scheduleList');
+    // Never present an empty picker: an empty list cannot be saved.
+    if (!list.children.length) addScheduleEntry();
+    else updateWarningVisibility();
+  }
 }
 
-// ---- Auth / Login ----
+// ---- Auth ----
+
+function showDashboard() {
+  el('loginOverlay').hidden = true;
+  el('main').hidden = false;
+}
 
 async function handleLogin(e) {
   e.preventDefault();
-  const password = document.getElementById('loginPassword').value;
-  const btn = document.getElementById('btnLoginSubmit');
+  const password = el('loginPassword').value;
+  const btn = el('btnLoginSubmit');
   btn.disabled = true;
 
   try {
@@ -99,13 +218,8 @@ async function handleLogin(e) {
     const data = await res.json();
     if (data.success) {
       localStorage.setItem('isbn_notify_api_key', password);
-      const overlay = document.getElementById('loginOverlay');
-      overlay.style.opacity = '0';
-      setTimeout(() => {
-        overlay.style.display = 'none';
-        document.getElementById('dashboardContent').style.display = 'flex';
-      }, 300);
-      showAlert('Autentikasi berhasil. Selamat datang!', 'success');
+      showDashboard();
+      showAlert('Autentikasi berhasil.', 'success');
       loadBooks();
       loadSettings();
     } else {
@@ -113,14 +227,14 @@ async function handleLogin(e) {
     }
   } catch (err) {
     console.error(err);
-    showAlert('Gagal menghubungkan ke server.', 'error');
+    showAlert('Tidak dapat menghubungi server. Periksa koneksi Anda.', 'error');
   } finally {
     btn.disabled = false;
   }
 }
 
 async function tryAutoLogin() {
-  const subInput = document.getElementById('submissionDate');
+  const subInput = el('submissionDate');
   if (subInput) subInput.value = formatDate(new Date());
 
   const storedKey = localStorage.getItem('isbn_notify_api_key');
@@ -129,44 +243,48 @@ async function tryAutoLogin() {
   try {
     const res = await fetch('/books', { headers: { 'X-API-Key': storedKey } });
     if (!res.ok) return;
-    document.getElementById('loginOverlay').style.display = 'none';
-    document.getElementById('dashboardContent').style.display = 'flex';
+    showDashboard();
     loadBooks();
     loadSettings();
   } catch {}
 }
 
 function handleLogout() {
-  if (!confirm('Apakah Anda yakin ingin logout?')) return;
   localStorage.removeItem('isbn_notify_api_key');
-  document.getElementById('loginPassword').value = '';
-  document.getElementById('dashboardContent').style.display = 'none';
-  const overlay = document.getElementById('loginOverlay');
-  overlay.style.display = 'flex';
-  overlay.style.opacity = '1';
+  el('loginPassword').value = '';
+  el('main').hidden = true;
+  el('loginOverlay').hidden = false;
   switchTab('tracking');
+  el('loginPassword').focus();
 }
 
-// ---- Tab Switching ----
+// ---- Tabs ----
 
 function switchTab(tabId) {
   const isTracking = tabId === 'tracking';
-  document.getElementById('tabContentTracking').style.display = isTracking ? 'grid' : 'none';
-  document.getElementById('tabContentSettings').style.display = isTracking ? 'none' : 'grid';
-  document.getElementById('tabBtnTracking').classList.toggle('active', isTracking);
-  document.getElementById('tabBtnSettings').classList.toggle('active', !isTracking);
+  el('tabContentTracking').hidden = !isTracking;
+  el('tabContentSettings').hidden = isTracking;
+  el('tabBtnTracking').setAttribute('aria-selected', String(isTracking));
+  el('tabBtnSettings').setAttribute('aria-selected', String(!isTracking));
   if (isTracking) loadBooks();
   else loadSettings();
 }
 
-// ---- Advanced Toggle ----
+// Roving tabindex: arrow keys move between tabs, as the tablist pattern expects.
+function onTablistKeydown(e) {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+  e.preventDefault();
+  const next = e.key === 'ArrowRight' ? 'settings' : 'tracking';
+  switchTab(next);
+  el(next === 'settings' ? 'tabBtnSettings' : 'tabBtnTracking').focus();
+}
 
 function toggleAdvancedSettings() {
-  const adv = document.getElementById('advancedSettings');
-  const chevron = document.getElementById('advChevron');
-  const isHidden = adv.style.display === 'none';
-  adv.style.display = isHidden ? 'block' : 'none';
-  chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+  const adv = el('advancedSettings');
+  const toggle = el('advToggle');
+  const expanded = toggle.getAttribute('aria-expanded') === 'true';
+  toggle.setAttribute('aria-expanded', String(!expanded));
+  adv.hidden = expanded;
 }
 
 // ---- Books API ----
@@ -175,24 +293,36 @@ async function loadBooks() {
   const apiKey = getApiKey();
   if (!apiKey) return;
 
+  // Enter the loading state explicitly, so a slow network never looks empty.
+  listState = 'loading';
+  renderBooksTable();
+
   try {
     const res = await fetch('/books', { headers: { 'X-API-Key': apiKey } });
     if (res.status === 401) { handleLogout(); return; }
     const data = await res.json();
     if (!data.success) {
-      showAlert(data.error || 'Gagal memuat daftar buku.', 'error');
+      listState = 'error';
+      listErrorMessage = data.error || 'Server menolak permintaan.';
+      showAlert(listErrorMessage, 'error');
+      renderBooksTable();
       return;
     }
     booksData = data.books || [];
+    listState = 'ready';
     refreshPublisherList();
-    renderBooksTable();
-    const pending = booksData.filter(b => b.status === 'PENDING').length;
-    const completed = booksData.filter(b => b.status === 'COMPLETED').length;
-    updateStats({ total: booksData.length, pending, completed });
+    updateStats({
+      total: booksData.length,
+      pending: booksData.filter(b => b.status === 'PENDING').length,
+      completed: booksData.filter(b => b.status === 'COMPLETED').length,
+    });
     calculateAverageTime();
+    renderBooksTable();
   } catch (err) {
     console.error(err);
-    showAlert('Gagal menghubungkan ke server.', 'error');
+    listState = 'error';
+    listErrorMessage = 'Tidak dapat menghubungi server.';
+    renderBooksTable();
   }
 }
 
@@ -201,17 +331,17 @@ async function handleAddBook(e) {
   const apiKey = getApiKey();
   if (!apiKey) return;
 
-  const btn = document.getElementById('btnSubmit');
+  const btn = el('btnSubmit');
   btn.disabled = true;
 
   const payload = {
-    title: document.getElementById('title').value.trim(),
-    publisher: document.getElementById('publisher').value.trim() || null,
-    author: document.getElementById('author').value.trim() || null,
-    submission_date: document.getElementById('submissionDate').value || null,
-    ntfy_topic: document.getElementById('ntfyTopic').value.trim() || null,
-    tg_chat_id: document.getElementById('tgChatId').value.trim() || null,
-    webhook_url: document.getElementById('webhookUrl').value.trim() || null,
+    title: el('title').value.trim(),
+    publisher: el('publisher').value.trim() || null,
+    author: el('author').value.trim() || null,
+    submission_date: el('submissionDate').value || null,
+    ntfy_topic: el('ntfyTopic').value.trim() || null,
+    tg_chat_id: el('tgChatId').value.trim() || null,
+    webhook_url: el('webhookUrl').value.trim() || null,
   };
 
   try {
@@ -222,25 +352,51 @@ async function handleAddBook(e) {
     });
     const data = await res.json();
     if (data.success) {
-      showAlert('Buku berhasil didaftarkan untuk dilacak!', 'success');
-      document.getElementById('addBookForm').reset();
-      document.getElementById('submissionDate').value = formatDate(new Date());
-      document.getElementById('advancedSettings').style.display = 'none';
-      document.getElementById('advChevron').style.transform = 'rotate(0deg)';
+      showAlert('Buku didaftarkan dan mulai dilacak.', 'success');
+      el('addBookForm').reset();
+      el('submissionDate').value = formatDate(new Date());
+      el('advancedSettings').hidden = true;
+      el('advToggle').setAttribute('aria-expanded', 'false');
       loadBooks();
     } else {
       showAlert(data.error || 'Gagal mendaftarkan buku.', 'error');
     }
   } catch (err) {
     console.error(err);
-    showAlert('Gagal menghubungkan ke server.', 'error');
+    showAlert('Tidak dapat menghubungi server.', 'error');
   } finally {
     btn.disabled = false;
   }
 }
 
-async function handleDeleteBook(id) {
-  if (!confirm('Apakah Anda yakin ingin berhenti melacak dan menghapus data buku ini?')) return;
+async function handleDeleteBook(id, title) {
+  // Native confirm() cannot be used here: it is anchored to the page, and the
+  // full-viewport overlay sits on top of it, so the user could see the dialog
+  // but not click it. The two-step arm pattern needs no overlay of its own.
+  const btn = document.activeElement;
+  if (!btn || !btn.dataset.confirmArmed) {
+    const label = btn ? btn.getAttribute('aria-label') : 'Hapus';
+    if (btn) {
+      btn.dataset.confirmArmed = '1';
+      btn.dataset.confirmLabel = label || '';
+      btn.setAttribute('aria-label', `Konfirmasi: hapus ${title}`);
+      btn.classList.add('armed');
+    }
+    setTimeout(() => {
+      if (!btn) return;
+      delete btn.dataset.confirmArmed;
+      btn.classList.remove('armed');
+      if (btn.dataset.confirmLabel) btn.setAttribute('aria-label', btn.dataset.confirmLabel);
+      delete btn.dataset.confirmLabel;
+    }, 5000);
+    return;
+  }
+
+  delete btn.dataset.confirmArmed;
+  btn.classList.remove('armed');
+  if (btn.dataset.confirmLabel) btn.setAttribute('aria-label', btn.dataset.confirmLabel);
+  delete btn.dataset.confirmLabel;
+
   const apiKey = getApiKey();
   if (!apiKey) return;
 
@@ -251,21 +407,21 @@ async function handleDeleteBook(id) {
     });
     const data = await res.json();
     if (data.success) {
-      showAlert('Buku berhasil dihapus dari daftar pelacakan.', 'success');
+      showAlert('Buku dihapus dari daftar pelacakan.', 'success');
       loadBooks();
     } else {
       showAlert(data.error || 'Gagal menghapus buku.', 'error');
     }
   } catch (err) {
     console.error(err);
-    showAlert('Terjadi kesalahan koneksi saat menghapus buku.', 'error');
+    showAlert('Tidak dapat menghubungi server.', 'error');
   }
 }
 
-// ---- Pagination ----
+// ---- Pagination & filtering ----
 
 function changePageSize(size) {
-  pageSize = size === 'all' ? 9999 : parseInt(size);
+  pageSize = size === 'all' ? 9999 : parseInt(size, 10);
   currentPage = 1;
   renderBooksTable();
 }
@@ -275,47 +431,46 @@ function goToPage(page) {
   renderBooksTable();
 }
 
-// ---- Status Filter ----
-
 function filterByStatus(status) {
   currentStatusFilter = status;
   currentPage = 1;
   renderBooksTable();
 }
 
-// ---- Manual Check ----
-
 async function handleManualCheck() {
   const apiKey = getApiKey();
   if (!apiKey) return;
 
-  const btn = document.getElementById('btnCheckNow');
-  const icon = document.getElementById('checkIcon');
+  const btn = el('btnCheckNow');
+  const icon = el('checkIcon');
   btn.disabled = true;
-  icon.classList.add('spinner');
+  // The icon element itself is replaced by lucide at runtime, so the spin
+  // class has to sit on the <svg> that replaces it, not on the <i>.
+  if (icon instanceof SVGElement) icon.classList.add('spin');
+  else btn.querySelector('svg')?.classList.add('spin');
 
   try {
-    const res = await fetch('/check', {
-      method: 'POST',
-      headers: { 'X-API-Key': apiKey },
-    });
+    const res = await fetch('/check', { method: 'POST', headers: { 'X-API-Key': apiKey } });
     const data = await res.json();
     if (data.success) {
-      showAlert(`Pengecekan selesai. Memeriksa ${data.checked} buku, ditemukan ${data.found} nomor ISBN baru!`, 'success');
+      showAlert(data.found > 0
+        ? `Pemeriksaan selesai. ${data.found} nomor ISBN baru ditemukan dari ${data.checked} buku.`
+        : `Pemeriksaan selesai. Belum ada ISBN baru dari ${data.checked} buku.`, 'success');
       loadBooks();
     } else {
-      showAlert(data.error || 'Gagal memproses pemeriksaan ISBN.', 'error');
+      showAlert(data.error || 'Gagal memeriksa ISBN.', 'error');
     }
   } catch (err) {
     console.error(err);
-    showAlert('Terjadi kesalahan koneksi saat pengecekan.', 'error');
+    showAlert('Tidak dapat menghubungi server.', 'error');
   } finally {
     btn.disabled = false;
-    icon.classList.remove('spinner');
+    const svg = btn.querySelector('svg');
+    if (svg) svg.classList.remove('spin');
   }
 }
 
-// ---- Settings API ----
+// ---- Settings ----
 
 async function loadSettings() {
   const apiKey = getApiKey();
@@ -328,23 +483,20 @@ async function loadSettings() {
     if (!data.success || !data.settings) return;
 
     const cfg = data.settings;
-    document.getElementById('cfgNtfyUrl').value = cfg.NTFY_DEFAULT_URL || '';
-    document.getElementById('cfgNtfyTopic').value = cfg.NTFY_DEFAULT_TOPIC || '';
-    document.getElementById('cfgNtfyAuth').value = cfg.NTFY_AUTH_TOKEN || '';
-    document.getElementById('cfgTgToken').value = cfg.TELEGRAM_BOT_TOKEN || '';
-    document.getElementById('cfgTgChat').value = cfg.TELEGRAM_DEFAULT_CHAT_ID || '';
-    document.getElementById('cfgWebhookUrl').value = cfg.WEBHOOK_DEFAULT_URL || '';
-    document.getElementById('cfgScheduler').value = cfg.SCHEDULER_INTERVAL || 'custom';
+    el('cfgNtfyUrl').value = cfg.NTFY_DEFAULT_URL || '';
+    el('cfgNtfyTopic').value = cfg.NTFY_DEFAULT_TOPIC || '';
+    el('cfgNtfyAuth').value = cfg.NTFY_AUTH_TOKEN || '';
+    el('cfgTgToken').value = cfg.TELEGRAM_BOT_TOKEN || '';
+    el('cfgTgChat').value = cfg.TELEGRAM_DEFAULT_CHAT_ID || '';
+    el('cfgWebhookUrl').value = cfg.WEBHOOK_DEFAULT_URL || '';
+    el('cfgScheduler').value = cfg.SCHEDULER_INTERVAL === 'disabled' ? 'disabled' : 'custom';
 
-    // Populate schedule entries
-    const scheduleList = document.getElementById('scheduleList');
-    if (scheduleList) {
-      scheduleList.innerHTML = '';
-      const times = cfg.SCHEDULER_HOURS?.length
-        ? cfg.SCHEDULER_HOURS
-        : ['09:00', '13:00', '17:00'];
-      times.forEach(t => addScheduleEntry(t));
-    }
+    const list = el('scheduleList');
+    list.innerHTML = '';
+    const times = Array.isArray(cfg.SCHEDULER_HOURS) && cfg.SCHEDULER_HOURS.length
+      ? cfg.SCHEDULER_HOURS
+      : ['09:00', '13:00', '17:00'];
+    times.forEach(t => addScheduleEntry(t));
 
     toggleScheduleContainer();
     updateWarningVisibility();
@@ -359,27 +511,26 @@ async function handleSaveSettings(e) {
   const apiKey = getApiKey();
   if (!apiKey) return;
 
-  const interval = document.getElementById('cfgScheduler').value;
-
+  const interval = el('cfgScheduler').value;
   const payload = {
-    NTFY_DEFAULT_URL: document.getElementById('cfgNtfyUrl').value.trim() || null,
-    NTFY_DEFAULT_TOPIC: document.getElementById('cfgNtfyTopic').value.trim() || null,
-    NTFY_AUTH_TOKEN: document.getElementById('cfgNtfyAuth').value || null,
-    TELEGRAM_BOT_TOKEN: document.getElementById('cfgTgToken').value || null,
-    TELEGRAM_DEFAULT_CHAT_ID: document.getElementById('cfgTgChat').value.trim() || null,
-    WEBHOOK_DEFAULT_URL: document.getElementById('cfgWebhookUrl').value.trim() || null,
+    NTFY_DEFAULT_URL: el('cfgNtfyUrl').value.trim() || null,
+    NTFY_DEFAULT_TOPIC: el('cfgNtfyTopic').value.trim() || null,
+    NTFY_AUTH_TOKEN: el('cfgNtfyAuth').value || null,
+    TELEGRAM_BOT_TOKEN: el('cfgTgToken').value || null,
+    TELEGRAM_DEFAULT_CHAT_ID: el('cfgTgChat').value.trim() || null,
+    WEBHOOK_DEFAULT_URL: el('cfgWebhookUrl').value.trim() || null,
     SCHEDULER_INTERVAL: interval,
+    SCHEDULER_HOURS: [],
   };
 
   if (interval === 'custom') {
     const times = getScheduleTimes();
     if (times.length === 0) {
-      showAlert('Tambahkan minimal 1 waktu jadwal.', 'error');
+      showAlert('Tambahkan minimal satu waktu pemeriksaan.', 'error');
+      el('scheduleList').focus();
       return;
     }
     payload.SCHEDULER_HOURS = times;
-  } else {
-    payload.SCHEDULER_HOURS = [];
   }
 
   try {
@@ -390,50 +541,49 @@ async function handleSaveSettings(e) {
     });
     const data = await res.json();
     if (data.success) {
-      showAlert('Konfigurasi server berhasil disimpan dan scheduler diperbarui!', 'success');
+      showAlert('Konfigurasi tersimpan dan penjadwal diperbarui.', 'success');
       loadSettings();
     } else {
       showAlert(data.error || 'Gagal menyimpan konfigurasi.', 'error');
     }
   } catch (err) {
     console.error(err);
-    showAlert('Koneksi gagal saat menyimpan setelan.', 'error');
+    showAlert('Tidak dapat menghubungi server.', 'error');
   }
 }
 
-// ---- Edit Modal ----
+// ---- Edit modal ----
 
 function openEditModal(id) {
-  const book = booksData.find(b => b.id === id);
+  // The id arrives from an inline onclick handler, so it is always a string,
+  // while book.id comes off JSON as a number. Strict equality never matches and
+  // the modal silently failed to open; String() on both sides is the fix.
+  const book = booksData.find(b => String(b.id) === String(id));
   if (!book) return;
 
-  document.getElementById('editBookId').value = book.id;
-  document.getElementById('editTitle').value = book.title || '';
-  document.getElementById('editPublisher').value = book.publisher || '';
-  document.getElementById('editAuthor').value = book.author || '';
-  document.getElementById('editSubmissionDate').value = book.submission_date || formatDate(new Date());
-  document.getElementById('editIsbnPublishedDate').value = book.isbn_published_date || '';
-  document.getElementById('editStatus').value = book.status || 'PENDING';
-  document.getElementById('editIsbn').value = book.isbn || '';
-  document.getElementById('editNtfyTopic').value = book.ntfy_topic || '';
-  document.getElementById('editTgChatId').value = book.tg_chat_id || '';
-  document.getElementById('editWebhookUrl').value = book.webhook_url || '';
+  el('editBookId').value = book.id;
+  el('editBookTitle').value = book.title || '';
+  el('editPublisher').value = book.publisher || '';
+  el('editAuthor').value = book.author || '';
+  el('editSubmissionDate').value = book.submission_date || formatDate(new Date());
+  el('editIsbnPublishedDate').value = book.isbn_published_date || '';
+  el('editStatus').value = book.status || 'PENDING';
+  el('editIsbn').value = book.isbn || '';
+  el('editNtfyTopic').value = book.ntfy_topic || '';
+  el('editTgChatId').value = book.tg_chat_id || '';
+  el('editWebhookUrl').value = book.webhook_url || '';
   toggleEditIsbnField();
 
-  const modal = document.getElementById('editBookModal');
-  modal.style.display = 'flex';
-  setTimeout(() => { modal.style.opacity = '1'; }, 50);
+  openModal('editBookModal');
 }
 
 function closeEditModal() {
-  const modal = document.getElementById('editBookModal');
-  modal.style.opacity = '0';
-  setTimeout(() => { modal.style.display = 'none'; }, 300);
+  closeModal('editBookModal');
 }
 
 function toggleEditIsbnField() {
-  const status = document.getElementById('editStatus').value;
-  const dateInput = document.getElementById('editIsbnPublishedDate');
+  const status = el('editStatus').value;
+  const dateInput = el('editIsbnPublishedDate');
   if (status === 'COMPLETED' && !dateInput.value) {
     dateInput.value = formatDate(new Date());
   }
@@ -444,21 +594,21 @@ async function handleSaveBookEdit(e) {
   const apiKey = getApiKey();
   if (!apiKey) return;
 
-  const id = document.getElementById('editBookId').value;
-  const btn = document.getElementById('btnSaveEditSubmit');
+  const id = el('editBookId').value;
+  const btn = el('btnSaveEditSubmit');
   btn.disabled = true;
 
   const payload = {
-    title: document.getElementById('editTitle').value.trim(),
-    publisher: document.getElementById('editPublisher').value.trim() || null,
-    author: document.getElementById('editAuthor').value.trim() || null,
-    submission_date: document.getElementById('editSubmissionDate').value || null,
-    isbn_published_date: document.getElementById('editIsbnPublishedDate').value || null,
-    status: document.getElementById('editStatus').value,
-    isbn: document.getElementById('editIsbn').value.trim() || null,
-    ntfy_topic: document.getElementById('editNtfyTopic').value.trim() || null,
-    tg_chat_id: document.getElementById('editTgChatId').value.trim() || null,
-    webhook_url: document.getElementById('editWebhookUrl').value.trim() || null,
+    title: el('editBookTitle').value.trim(),
+    publisher: el('editPublisher').value.trim() || null,
+    author: el('editAuthor').value.trim() || null,
+    submission_date: el('editSubmissionDate').value || null,
+    isbn_published_date: el('editIsbnPublishedDate').value || null,
+    status: el('editStatus').value,
+    isbn: el('editIsbn').value.trim() || null,
+    ntfy_topic: el('editNtfyTopic').value.trim() || null,
+    tg_chat_id: el('editTgChatId').value.trim() || null,
+    webhook_url: el('editWebhookUrl').value.trim() || null,
   };
 
   try {
@@ -469,7 +619,7 @@ async function handleSaveBookEdit(e) {
     });
     const data = await res.json();
     if (data.success) {
-      showAlert('Detail buku berhasil diperbarui!', 'success');
+      showAlert('Detail buku diperbarui.', 'success');
       closeEditModal();
       loadBooks();
     } else {
@@ -477,243 +627,319 @@ async function handleSaveBookEdit(e) {
     }
   } catch (err) {
     console.error(err);
-    showAlert('Terjadi kesalahan koneksi saat mengedit buku.', 'error');
+    showAlert('Tidak dapat menghubungi server.', 'error');
   } finally {
     btn.disabled = false;
   }
 }
 
-// ---- Stats & Table Rendering ----
+// ---- Stats & table rendering ----
 
 function updateStats({ total, pending, completed }) {
-  document.getElementById('statTotal').innerText = total;
-  document.getElementById('statPending').innerText = pending;
-  document.getElementById('statCompleted').innerText = completed;
+  el('statTotal').innerText = total;
+  el('statPending').innerText = pending;
+  el('statCompleted').innerText = completed;
+}
+
+// Three states, each naming its cause and the action that resolves it.
+function renderState(kind, opts) {
+  const map = {
+    loading: {
+      icon: 'loader-2',
+      spinner: true,
+      title: 'Memuat daftar buku',
+      text: 'Mengambil data pelacakan dari server.',
+    },
+    error: {
+      icon: 'alert-triangle',
+      title: 'Gagal memuat daftar buku',
+      text: opts.text,
+      action: '<button type="button" class="btn btn-secondary" onclick="loadBooks()">Coba lagi</button>',
+    },
+    empty: {
+      icon: 'inbox',
+      title: opts.title,
+      text: opts.text,
+      action: opts.action,
+    },
+  };
+  const s = map[kind];
+  return `
+    <div class="state${kind === 'error' ? ' state-error' : ''}">
+      <i data-lucide="${s.icon}" class="state-icon${s.spinner ? ' spinner' : ''}" aria-hidden="true"></i>
+      <p class="state-title">${s.title}</p>
+      <p class="state-text">${s.text}</p>
+      ${s.action || ''}
+    </div>`;
 }
 
 function renderBooksTable() {
-  const body = document.getElementById('booksListBody');
-  const search = document.getElementById('searchQuery').value.toLowerCase();
+  const body = el('booksListBody');
+  const controls = el('paginationControls');
+  const search = el('searchQuery').value.trim().toLowerCase();
+
+  if (listState === 'loading') {
+    body.innerHTML = `
+      <tr><td colspan="6">
+        <div class="state" aria-busy="true">
+          <i data-lucide="loader-2" class="state-icon spinner" aria-hidden="true"></i>
+          <p class="state-title">Memuat daftar buku</p>
+          <p class="state-text">Mengambil data pelacakan dari server.</p>
+        </div>
+      </td></tr>`;
+    controls.hidden = true;
+    icons();
+    return;
+  }
+
+  if (listState === 'error') {
+    body.innerHTML = `
+      <tr><td colspan="6">
+        ${renderState('error', { text: listErrorMessage })}
+      </td></tr>`;
+    controls.hidden = true;
+    icons();
+    return;
+  }
 
   let filtered = booksData.filter(b =>
     (b.title && b.title.toLowerCase().includes(search)) ||
     (b.publisher && b.publisher.toLowerCase().includes(search))
   );
 
-  // Apply status filter
-  if (currentStatusFilter !== "all") {
+  if (currentStatusFilter !== 'all') {
     filtered = filtered.filter(b => b.status === currentStatusFilter);
   }
 
-  // Pagination
   const totalItems = filtered.length;
-  const totalPages = pageSize >= totalItems ? 1 : Math.ceil(totalItems / pageSize);
+
+  // First run, a search that missed, and a filter that matched nothing are
+  // three different situations and must not share one message.
+  if (totalItems === 0) {
+    let title, text, action;
+    if (booksData.length === 0) {
+      title = 'Belum ada buku dilacak';
+      text = 'Daftar ini masih kosong. Tambahkan buku pertama, atau tempel data dari Perpusnas untuk menambah banyak sekaligus.';
+      action = '<button type="button" class="btn btn-primary" onclick="document.getElementById(\'title\').focus()">Daftarkan buku pertama</button>';
+    } else if (search) {
+      title = 'Tidak ada hasil untuk pencarian';
+      text = `Tidak ada buku yang cocok dengan "${escapeHtml(el('searchQuery').value.trim())}". Coba kata lain atau kosongkan pencarian.`;
+      action = '<button type="button" class="btn btn-secondary" onclick="clearSearch()">Kosongkan pencarian</button>';
+    } else {
+      const label = STATUS_LABEL[currentStatusFilter] || currentStatusFilter;
+      title = `Tidak ada buku berstatus ${label.toLowerCase()}`;
+      text = booksData.length === 0
+        ? 'Belum ada buku dilacak.'
+        : `Semua ${booksData.length} buku yang dilacak tidak berstatus ${label.toLowerCase()}. Ubah saringan untuk melihat status lain.`;
+      action = '<button type="button" class="btn btn-secondary" onclick="filterByStatus(\'all\')">Tampilkan semua status</button>';
+    }
+    body.innerHTML = `<tr><td colspan="6">${renderState('empty', { title, text, action })}</td></tr>`;
+    controls.hidden = true;
+    icons();
+    return;
+  }
+
+  const totalPages = Math.ceil(totalItems / pageSize);
   if (currentPage > totalPages) currentPage = totalPages;
   if (currentPage < 1) currentPage = 1;
   const startIdx = (currentPage - 1) * pageSize;
   const paged = filtered.slice(startIdx, startIdx + pageSize);
 
-  if (paged.length === 0) {
-    body.innerHTML = `
-      <tr>
-        <td colspan="6">
-          <div class="empty-state">
-            <i data-lucide="inbox" class="empty-icon"></i>
-            <p>Tidak ada buku dalam pelacakan.</p>
-          </div>
-        </td>
-      </tr>`;
-    renderPagination(totalItems, totalPages);
-    lucide.createIcons();
-    return;
-  }
-
-  const globalOffset = startIdx;
   body.innerHTML = paged.map((book, idx) => {
-    const isCompleted = book.status === 'COMPLETED';
-    const authorStr = book.author || '-';
-    const pubStr = book.publisher || '-';
-    const dateInfo = `Pengajuan: ${book.submission_date || '-'}${isCompleted && book.isbn_published_date ? ' | Terbit: ' + book.isbn_published_date : ''}`;
-    const isbnDisplay = book.isbn
-      ? `<span class="font-mono" style="background:rgba(15,23,42,0.8);padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.08)">${book.isbn}</span>`
-      : '<span class="text-muted">-</span>';
+    const settled = book.status === 'COMPLETED';
+    const statusLabel = STATUS_LABEL[book.status] || book.status;
+    const dateInfo = `Diajukan ${book.submission_date || '-'}`
+      + (settled && book.isbn_published_date ? `, terbit ${book.isbn_published_date}` : '');
+
+    // Every interpolated value is escaped. isbn and id come from the scraped
+    // Perpusnas response and are not data this app controls.
+    const isbnCell = book.isbn
+      ? `<span class="plate">${escapeHtml(book.isbn)}</span>`
+      : '<span class="cell-sub">Belum ada</span>';
+
+    const idAttr = escapeHtml(book.id);
+    const safeTitle = escapeHtml(book.title || '');
 
     return `
       <tr>
-        <td data-label="No." style="text-align:center;color:var(--text-muted);font-size:0.8125rem;width:50px">${globalOffset + idx + 1}</td>
-        <td data-label="Judul"><div style="font-weight:600;color:var(--text-main)">${escapeHtml(book.title)}</div></td>
-        <td data-label="Pengarang / Penerbit">
-          <div style="font-size:0.8125rem;color:var(--text-main)">A: ${escapeHtml(authorStr)}</div>
-          <div style="font-size:0.75rem;color:var(--text-muted)">P: ${escapeHtml(pubStr)}</div>
-          <div style="font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem">${escapeHtml(dateInfo)}</div>
+        <td class="cell-index" data-label="No.">${startIdx + idx + 1}</td>
+        <td data-label="Judul"><div class="cell-title">${safeTitle}</div></td>
+        <td data-label="Pengarang dan penerbit">
+          <div class="cell-meta">${escapeHtml(book.author || 'Pengarang tidak dicatat')}</div>
+          <div class="cell-sub">${escapeHtml(book.publisher || 'Penerbit tidak dicatat')}</div>
+          <div class="cell-dates">${escapeHtml(dateInfo)}</div>
         </td>
         <td data-label="Status">
-          <span class="badge ${isCompleted ? 'badge-success' : 'badge-pending'}">
-            <i data-lucide="${isCompleted ? 'check' : 'loader-2'}" class="${isCompleted ? '' : 'spinner'}" style="width:0.85rem;height:0.85rem"></i>
-            ${book.status}
-          </span>
+          <span class="badge ${settled ? 'badge-settled' : 'badge-pending'}">${escapeHtml(statusLabel)}</span>
         </td>
-        <td data-label="ISBN">${isbnDisplay}</td>
-        <td data-label="Aksi" class="text-right">
-          <div class="flex-actions">
-            <button type="button" class="btn btn-icon" onclick="openEditModal(${book.id})" aria-label="Edit buku ${book.id}" style="color:var(--color-primary);border-color:rgba(59,130,246,0.2)">
-              <i data-lucide="edit-3" style="width:1rem;height:1rem"></i>
+        <td data-label="ISBN">${isbnCell}</td>
+        <td data-label="Aksi" style="text-align:right">
+          <div class="row-actions">
+            <button type="button" class="row-btn" onclick="openEditModal('${idAttr}')" aria-label="Edit ${safeTitle}" title="Edit">
+              <i data-lucide="edit-3" aria-hidden="true"></i>
             </button>
-            <button type="button" class="btn btn-danger" onclick="handleDeleteBook(${book.id})" aria-label="Hapus buku ${book.id}">
-              <i data-lucide="trash" style="width:1rem;height:1rem"></i>
+            <button type="button" class="row-btn danger" onclick="handleDeleteBook('${idAttr}', '${safeTitle}')" aria-label="Hapus ${safeTitle}" title="Hapus">
+              <i data-lucide="trash-2" aria-hidden="true"></i>
             </button>
           </div>
         </td>
       </tr>`;
   }).join('');
-  lucide.createIcons();
+
+  icons();
   renderPagination(totalItems, totalPages);
 }
 
-function renderPagination(total, totalPages) {
-  const container = document.getElementById('pageButtons');
-  const controls = document.getElementById('paginationControls');
-  if (!container || !controls) return;
-  container.innerHTML = '';
-  if (total === 0) { controls.style.display = 'none'; return; }
-  controls.style.display = 'flex';
+function clearSearch() {
+  el('searchQuery').value = '';
+  renderBooksTable();
+  el('searchQuery').focus();
+}
 
-  const makeBtn = (label, page, disabled, active) => {
-    const cls = active ? 'btn btn-primary' : 'btn';
-    const style = active ? '' : 'style="font-size:0.75rem;padding:0.25rem 0.5rem"';
-    return `<button type="button" class="${cls}" ${style} onclick="goToPage(${page})" ${disabled ? 'disabled' : ''}>${label}</button>`;
+function renderPagination(total, totalPages) {
+  const container = el('pageButtons');
+  const controls = el('paginationControls');
+  if (!container || !controls) return;
+
+  container.innerHTML = '';
+  if (total === 0) { controls.hidden = true; return; }
+  controls.hidden = false;
+
+  const pageBtn = (label, page, opts = {}) => {
+    const isCurrent = opts.current === true;
+    const attrs = [
+      `type="button"`,
+      `class="page-btn"`,
+      `onclick="goToPage(${page})"`,
+      opts.disabled ? 'disabled' : '',
+      isCurrent ? 'aria-current="page"' : '',
+      opts.label ? `aria-label="${escapeHtml(opts.label)}"` : '',
+    ].filter(Boolean).join(' ');
+    return `<button ${attrs}>${label}</button>`;
   };
 
-  let html = '';
-  html += makeBtn('Sebelumnya', currentPage - 1, currentPage <= 1, false);
+  let html = pageBtn('Sebelumnya', currentPage - 1, {
+    disabled: currentPage <= 1,
+    label: 'Halaman sebelumnya',
+  });
 
   for (let i = 1; i <= totalPages; i++) {
     if (totalPages > 7 && i > 2 && i < totalPages - 1 && Math.abs(i - currentPage) > 1) {
-      if (i === 3 || i === totalPages - 2) html += '<span style="padding:0 0.25rem;color:var(--text-muted)">...</span>';
+      if (i === 3 || i === totalPages - 2) html += '<span class="page-gap">...</span>';
       continue;
     }
-    html += makeBtn(i, i, false, i === currentPage);
+    html += pageBtn(i, i, { current: i === currentPage, label: `Halaman ${i}` });
   }
 
-  html += makeBtn('Berikutnya', currentPage + 1, currentPage >= totalPages, false);
-  html += `<span style="font-size:0.75rem;color:var(--text-muted);margin-left:0.5rem">${total} data</span>`;
+  html += pageBtn('Berikutnya', currentPage + 1, {
+    disabled: currentPage >= totalPages,
+    label: 'Halaman berikutnya',
+  });
+
+  const from = (currentPage - 1) * pageSize + 1;
+  const to = Math.min(currentPage * pageSize, total);
+  html += `<span class="pagination-info" style="margin-left:0.5rem">${from}-${to} dari ${total}</span>`;
   container.innerHTML = html;
 }
 
-// ---- Average Time ----
+// ---- Average time ----
 
 function calculateAverageTime() {
-  const filter = document.getElementById('avgTimeFilter').value;
-  const customPicker = document.getElementById('customRangePicker');
+  const filter = el('avgTimeFilter').value;
+  const customPicker = el('customRangePicker');
+  customPicker.hidden = filter !== 'custom';
 
   let startDateVal = null;
   let endDateVal = null;
 
   if (filter === 'custom') {
-    customPicker.style.display = 'flex';
-    startDateVal = document.getElementById('avgStartDate').value;
-    endDateVal = document.getElementById('avgEndDate').value;
+    startDateVal = el('avgStartDate').value;
+    endDateVal = el('avgEndDate').value;
   } else {
-    customPicker.style.display = 'none';
-    const now = new Date();
     const months = { '1m': 1, '2m': 2, '3m': 3 }[filter];
     if (months) {
-      now.setMonth(now.getMonth() - months);
-      startDateVal = formatDate(now);
+      const from = new Date();
+      from.setMonth(from.getMonth() - months);
+      startDateVal = formatDate(from);
     }
   }
 
-  const completedBooks = booksData.filter(
+  const settled = booksData.filter(
     b => b.status === 'COMPLETED' && b.submission_date && b.isbn_published_date
   );
 
-  let filtered = completedBooks;
-  if (startDateVal) filtered = filtered.filter(b => b.isbn_published_date >= startDateVal);
-  if (endDateVal) filtered = filtered.filter(b => b.isbn_published_date <= endDateVal);
+  let scoped = settled;
+  if (startDateVal) scoped = scoped.filter(b => b.isbn_published_date >= startDateVal);
+  if (endDateVal) scoped = scoped.filter(b => b.isbn_published_date <= endDateVal);
 
-  let totalDays = 0;
-  filtered.forEach(b => {
-    const diff = new Date(b.isbn_published_date) - new Date(b.submission_date);
-    totalDays += Math.max(0, diff / (1000 * 60 * 60 * 24));
-  });
+  const resultEl = el('avgTimeResult');
+  const countEl = el('avgTimeCount');
 
-  const avgSpan = document.getElementById('avgTimeResult');
-  const countSpan = document.getElementById('avgTimeCount');
-
-  if (filtered.length > 0) {
-    avgSpan.innerText = `${(totalDays / filtered.length).toFixed(1)} Hari`;
-    countSpan.innerText = `(Berdasarkan ${filtered.length} buku terbit)`;
-  } else {
-    avgSpan.innerText = '0.0 Hari';
-    countSpan.innerText = '(Berdasarkan 0 buku terbit)';
+  if (scoped.length === 0) {
+    resultEl.textContent = 'Belum ada data';
+    countEl.textContent = booksData.length === 0
+      ? 'Daftar pelacakan masih kosong.'
+      : 'Belum ada buku yang terbit pada rentang ini.';
+    return;
   }
+
+  const totalDays = scoped.reduce((sum, b) => {
+    const diff = new Date(b.isbn_published_date) - new Date(b.submission_date);
+    return sum + Math.max(0, diff / 86400000);
+  }, 0);
+
+  resultEl.textContent = `${(totalDays / scoped.length).toFixed(1)} hari`;
+  countEl.textContent = `Dihitung dari ${scoped.length} buku yang terbit${startDateVal ? ' pada rentang ini' : ''}.`;
 }
 
-// ---- Quick Add from Perpusnas ----
+// ---- Quick Add ----
 
 function openQuickAddModal() {
-  const modal = document.getElementById('quickAddModal');
+  const modal = el('quickAddModal');
   if (!modal) return;
-  document.getElementById('quickAddInput').value = '';
-  document.getElementById('quickAddPreview').style.display = 'none';
-  document.getElementById('quickAddBooksList').innerHTML = '';
-  modal.style.display = 'flex';
-  setTimeout(() => { modal.style.opacity = '1'; }, 50);
-  document.getElementById('quickAddInput').focus();
+  el('quickAddInput').value = '';
+  el('quickAddPreview').hidden = true;
+  el('quickAddBooksList').innerHTML = '';
+  openModal('quickAddModal');
+  el('quickAddInput').focus();
 }
 
 function closeQuickAddModal() {
-  const modal = document.getElementById('quickAddModal');
-  if (!modal) return;
-  modal.style.opacity = '0';
-  setTimeout(() => { modal.style.display = 'none'; }, 300);
+  closeModal('quickAddModal');
 }
 
 function parsePerpusnasData(text) {
-  const lines = text.split('\n');
   const books = [];
   let current = null;
 
-  for (const line of lines) {
+  for (const line of text.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
     const parts = trimmed.split('\t');
 
-    // New entry: line starts with a number + tab
+    // New entry: line begins with a row number.
     if (/^\d+\t/.test(trimmed)) {
       if (current) books.push(current);
-      current = {
-        no_resi: parts[2] || '',
-        title: '',
-        author: '',
-        submission_date: '',
-        peruntukan: ''
-      };
+      current = { no_resi: parts[2] || '', title: '', author: '', submission_date: '', peruntukan: '' };
       continue;
     }
 
     if (!current) continue;
 
-    // Title line: starts with 'web'
     if (parts[0] && parts[0].toLowerCase().startsWith('web')) {
       current.title = parts.slice(1).join(' ').trim();
       continue;
     }
 
-    // Author/details line: starts with peruntukan like 'lepas Cetak', 'saku', etc.
     if (parts.length >= 5) {
       current.peruntukan = parts[0] || '';
-      // Author is in parts[1], clean it up
-      const rawAuthor = parts[1] || '';
-      current.author = rawAuthor
+      current.author = (parts[1] || '')
         .split(';')
         .map(s => s.replace(/^(penulis|editor),\s*/i, '').trim())
-        .filter(s => s.length > 0)
+        .filter(Boolean)
         .join('; ');
-      // Date is in parts[5], format: '8/24/2026 5:42:03 PM'
-      const rawDate = parts[5] || '';
-      current.submission_date = convertToDateFormat(rawDate);
+      current.submission_date = convertToDateFormat(parts[5] || '');
     }
   }
   if (current) books.push(current);
@@ -722,9 +948,7 @@ function parsePerpusnasData(text) {
 }
 
 function convertToDateFormat(dateStr) {
-  if (!dateStr) return '';
-  // Parse '8/24/2026 5:42:03 PM'
-  const match = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  const match = (dateStr || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (!match) return '';
   const [, month, day, year] = match;
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
@@ -733,72 +957,117 @@ function convertToDateFormat(dateStr) {
 let parsedBooksData = [];
 
 function handleParseData() {
-  const text = document.getElementById('quickAddInput').value;
+  const text = el('quickAddInput').value;
   if (!text.trim()) {
-    showAlert('Silakan paste data terlebih dahulu.', 'error');
+    showAlert('Tempel data dari Perpusnas terlebih dahulu.', 'error');
+    el('quickAddInput').focus();
     return;
   }
 
   parsedBooksData = parsePerpusnasData(text);
   if (parsedBooksData.length === 0) {
-    showAlert('Tidak ada data buku yang terdeteksi. Pastikan format data sesuai dengan tabel Perpusnas.', 'error');
+    showAlert('Tidak ada baris buku yang terbaca. Pastikan data yang ditempel berasal dari tabel permohonan ISBN Perpusnas.', 'error');
     return;
   }
 
   showParsedBooks(parsedBooksData);
-  document.getElementById('quickAddPreview').style.display = 'block';
+  el('quickAddPreview').hidden = false;
+  el('btnQuickAddSubmit').focus();
 }
 
 function showParsedBooks(books) {
-  const container = document.getElementById('quickAddBooksList');
+  const container = el('quickAddBooksList');
   container.innerHTML = '';
 
   books.forEach((book, index) => {
-    const div = document.createElement('div');
-    div.className = 'glass-card';
-    div.style.cssText = 'padding:0.75rem;border:1px solid rgba(255,255,255,0.06);gap:0.75rem';
-    div.innerHTML = `
-      <div style="display:flex;align-items:flex-start;gap:0.75rem">
-        <input type="checkbox" class="quick-add-checkbox" data-index="${index}" checked
-          onchange="updateQuickAddSelectedCount()" style="margin-top:0.25rem;accent-color:var(--color-primary)">
-        <div style="flex:1;display:flex;flex-direction:column;gap:0.5rem">
-          <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
-            <span style="font-size:0.7rem;background:rgba(59,130,246,0.1);color:var(--color-primary);padding:2px 8px;border-radius:4px">No. Resi: ${escapeHtml(book.no_resi)}</span>
-            <span style="font-size:0.7rem;background:rgba(16,185,129,0.1);color:var(--color-success);padding:2px 8px;border-radius:4px">${escapeHtml(book.peruntukan)}</span>
-          </div>
-          <div class="form-group" style="margin:0">
-            <label style="font-size:0.75rem;color:var(--text-muted)">Judul Buku</label>
-            <input type="text" class="form-control quick-add-field-title" value="${escapeHtml(book.title)}" style="font-size:0.8125rem;padding:0.375rem 0.5rem">
-          </div>
-          <div style="display:flex;gap:0.75rem">
-            <div class="form-group" style="margin:0;flex:2">
-              <label style="font-size:0.75rem;color:var(--text-muted)">Pengarang</label>
-              <input type="text" class="form-control quick-add-field-author" value="${escapeHtml(book.author)}" style="font-size:0.8125rem;padding:0.375rem 0.5rem">
-            </div>
-            <div class="form-group" style="margin:0;flex:1">
-              <label style="font-size:0.75rem;color:var(--text-muted)">Tanggal Pengajuan</label>
-              <input type="date" class="form-control quick-add-field-date" value="${book.submission_date}" style="font-size:0.8125rem;padding:0.375rem 0.5rem">
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    container.appendChild(div);
+    const row = document.createElement('div');
+    row.className = 'parsed-book';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'quick-add-checkbox';
+    checkbox.dataset.index = String(index);
+    checkbox.checked = true;
+    checkbox.setAttribute('aria-label', `Pilih ${book.title}`);
+    checkbox.addEventListener('change', updateQuickAddSelectedCount);
+
+    const body = document.createElement('div');
+    body.className = 'parsed-book-body';
+
+    const tags = document.createElement('div');
+    tags.className = 'parsed-book-tags';
+    if (book.no_resi) {
+      tags.innerHTML += `<span class="plate">Resi ${escapeHtml(book.no_resi)}</span>`;
+    }
+    if (book.peruntukan) {
+      tags.innerHTML += `<span class="plate">${escapeHtml(book.peruntukan)}</span>`;
+    }
+
+    // Built with DOM APIs and .value rather than interpolated innerHTML, so a
+    // scraped title can never become markup.
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.className = 'form-control quick-add-field-title';
+    titleInput.value = book.title;
+
+    const authorInput = document.createElement('input');
+    authorInput.type = 'text';
+    authorInput.className = 'form-control quick-add-field-author';
+    authorInput.value = book.author;
+
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.className = 'form-control quick-add-field-date';
+    dateInput.value = book.submission_date;
+
+    const field = (labelText, input) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'form-group';
+      const label = document.createElement('label');
+      label.textContent = labelText;
+      label.className = 'form-group-label';
+      const id = `qa-${index}-${labelText.toLowerCase().replace(/\s+/g, '-')}`;
+      input.id = id;
+      label.setAttribute('for', id);
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      return wrap;
+    };
+
+    const fields = document.createElement('div');
+    fields.className = 'parsed-book-fields';
+    const authorWrap = field('Pengarang', authorInput);
+    authorWrap.style.flex = '2';
+    fields.appendChild(authorWrap);
+    fields.appendChild(field('Tanggal pengajuan', dateInput));
+
+    body.appendChild(tags);
+    body.appendChild(field('Judul buku', titleInput));
+    body.appendChild(fields);
+
+    row.appendChild(checkbox);
+    row.appendChild(body);
+    container.appendChild(row);
   });
 
   updateQuickAddSelectedCount();
 }
 
 function updateQuickAddSelectedCount() {
-  const checkboxes = document.querySelectorAll('.quick-add-checkbox:checked');
-  document.getElementById('quickAddSelectedCount').textContent = checkboxes.length;
-  document.getElementById('quickAddCount').textContent = `${checkboxes.length} dari ${parsedBooksData.length} buku akan ditambahkan`;
+  const checked = document.querySelectorAll('.quick-add-checkbox:checked').length;
+  el('quickAddSelectedCount').textContent = checked;
+  el('quickAddCount').textContent = checked === parsedBooksData.length
+    ? `Semua ${parsedBooksData.length} buku akan ditambahkan`
+    : `${checked} dari ${parsedBooksData.length} buku akan ditambahkan`;
+
+  const submit = el('btnQuickAddSubmit');
+  submit.disabled = checked === 0;
 }
 
 function toggleSelectAllQuickAdd() {
-  const checkboxes = document.querySelectorAll('.quick-add-checkbox');
-  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-  checkboxes.forEach(cb => cb.checked = !allChecked);
+  const boxes = document.querySelectorAll('.quick-add-checkbox');
+  const allChecked = Array.from(boxes).every(cb => cb.checked);
+  boxes.forEach(cb => { cb.checked = !allChecked; });
   updateQuickAddSelectedCount();
 }
 
@@ -806,32 +1075,29 @@ async function handleQuickAddSubmit() {
   const apiKey = getApiKey();
   if (!apiKey) return;
 
-  const cards = document.querySelectorAll('#quickAddBooksList > div');
-  const selectedBooks = [];
-
-  cards.forEach((card, index) => {
-    const checkbox = card.querySelector('.quick-add-checkbox');
+  const selected = [];
+  document.querySelectorAll('#quickAddBooksList .parsed-book').forEach(row => {
+    const checkbox = row.querySelector('.quick-add-checkbox');
     if (!checkbox || !checkbox.checked) return;
-
-    selectedBooks.push({
-      title: card.querySelector('.quick-add-field-title').value.trim(),
-      author: card.querySelector('.quick-add-field-author').value.trim() || null,
-      submission_date: card.querySelector('.quick-add-field-date').value || null
+    selected.push({
+      title: row.querySelector('.quick-add-field-title').value.trim(),
+      author: row.querySelector('.quick-add-field-author').value.trim() || null,
+      submission_date: row.querySelector('.quick-add-field-date').value || null,
     });
   });
 
-  if (selectedBooks.length === 0) {
-    showAlert('Tidak ada buku yang dipilih.', 'error');
+  if (selected.length === 0) {
+    showAlert('Pilih minimal satu buku untuk ditambahkan.', 'error');
     return;
   }
 
-  const btn = document.getElementById('btnQuickAddSubmit');
+  const btn = el('btnQuickAddSubmit');
   btn.disabled = true;
   let successCount = 0;
   let failCount = 0;
 
   try {
-    for (const book of selectedBooks) {
+    for (const book of selected) {
       try {
         const res = await fetch('/books', {
           method: 'POST',
@@ -847,13 +1113,14 @@ async function handleQuickAddSubmit() {
     }
 
     if (successCount > 0) {
-      showAlert(`${successCount} buku berhasil didaftarkan untuk dilacak!${failCount > 0 ? ` (${failCount} gagal)` : ''}`, 'success');
+      showAlert(failCount > 0
+        ? `${successCount} buku ditambahkan, ${failCount} gagal.`
+        : `${successCount} buku ditambahkan dan mulai dilacak.`, 'success');
+      closeQuickAddModal();
       loadBooks();
     } else {
-      showAlert('Gagal mendaftarkan buku.', 'error');
+      showAlert('Tidak ada buku yang berhasil ditambahkan.', 'error');
     }
-
-    closeQuickAddModal();
   } catch (err) {
     console.error(err);
     showAlert('Terjadi kesalahan koneksi.', 'error');
@@ -862,43 +1129,51 @@ async function handleQuickAddSubmit() {
   }
 }
 
-// ---- Alert Banners ----
+// ---- Alerts ----
 
 function showAlert(message, type = 'success') {
-  const container = document.getElementById('alertContainer');
-  const bannerClass = type === 'success' ? 'alert-success' : 'alert-error';
-  const icon = type === 'success' ? 'check-circle' : 'x-circle';
-  const alertId = 'alert_' + Date.now();
+  const container = el('alertContainer');
+  const isError = type === 'error';
 
-  const div = document.createElement('div');
-  div.className = `alert-banner ${bannerClass}`;
-  div.id = alertId;
-  div.innerHTML = `
-    <i data-lucide="${icon}" style="width:1.25rem;height:1.25rem;flex-shrink:0"></i>
-    <span>${escapeHtml(message)}</span>
-    <button type="button" class="alert-close" onclick="closeAlert('${alertId}')" aria-label="Tutup notifikasi">
-      <i data-lucide="x" style="width:1rem;height:1rem"></i>
-    </button>`;
+  const banner = document.createElement('div');
+  banner.className = `alert-banner ${isError ? 'alert-error' : 'alert-success'}`;
 
-  container.appendChild(div);
-  lucide.createIcons();
-  setTimeout(() => closeAlert(alertId), 5000);
-}
+  const icon = document.createElement('i');
+  icon.setAttribute('data-lucide', isError ? 'circle-alert' : 'circle-check');
+  icon.setAttribute('aria-hidden', 'true');
 
-function closeAlert(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.opacity = '0';
-  el.style.transform = 'translateY(1rem)';
-  el.style.transition = 'opacity var(--transition-timing), transform var(--transition-timing)';
-  setTimeout(() => el.remove(), 200);
+  const text = document.createElement('span');
+  text.textContent = message;
+
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'alert-close';
+  close.setAttribute('aria-label', 'Tutup notifikasi');
+  close.innerHTML = '<i data-lucide="x" aria-hidden="true"></i>';
+  close.addEventListener('click', () => dismiss());
+
+  banner.appendChild(icon);
+  banner.appendChild(text);
+  banner.appendChild(close);
+  container.appendChild(banner);
+  icons();
+
+  // Errors stay until dismissed; confirmations get out of the way.
+  if (!isError) setTimeout(dismiss, 5000);
+
+  function dismiss() {
+    banner.remove();
+  }
 }
 
 // ---- Init ----
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Safety: ensure edit modal starts hidden
-  const modal = document.getElementById('editBookModal');
-  if (modal) modal.style.display = 'none';
+  const tablist = document.querySelector('.tablist');
+  if (tablist) tablist.addEventListener('keydown', onTablistKeydown);
+
+  const storedTheme = localStorage.getItem('isbn_notify_theme');
+  applyTheme(storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : 'light');
+
   tryAutoLogin();
 });
