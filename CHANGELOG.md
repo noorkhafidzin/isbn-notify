@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.9] - 2026-10-08
+
+### Added
+- **Pengurutan Daftar Pelacakan**: Dropdown urutan buku (terbaru dulu / terlama dulu), default terbaru. Pilihan disimpan di `localStorage` sehingga bertahan setelah reload.
+- **Ringkasan hasil filter**: Baris ringkasan muncul hanya ketika pencarian atau filter sedang mempersempit daftar, menampilkan jumlah buku yang tampil dari total, disertai tombol "Hapus filter".
+- **Pencarian per pengarang**: Kolom pengarang ikut dicari, sebelumnya hanya judul dan penerbit.
+- **Debounce pencarian dan filter**: Tabel tidak dirender ulang pada tiap ketikan.
+- **Tombol Cek ISBN**: Pemeriksaan manual memicu pengecekan ke Perpusnas tanpa menunggu jadwal.
+- **Tema terang/gelap**: Toggle di header, pilihan tersimpan di `localStorage` dan diterapkan sebelum render pertama agar tidak berkedip.
+- **Nomor halaman**: Navigasi halaman pada Daftar Pelacakan dengan opsi 10, 25, 50, atau semua data per halaman.
+
+### Changed
+- **Redesain visual penuh**: Semua treatment glass dihapus, palet dikecilkan dari lima warna kromatik menjadi dua hue, tanpa shadow dan glow, tanpa micro-label uppercase, radius diseragamkan ke tiga langkah.
+- **Aksesibilitas**: 76 pasangan warna foreground/background di dua tema kini lolos WCAG AA. Dialog mendapat `role="dialog"`, `aria-modal`, focus trap, dan Escape untuk menutup. Tab memakai roving tabindex, kontrol `outline:none` dihapus.
+- **State list eksplisit**: Loading, kosong, dan error dipisahkan, dengan empat penyebab kosong berbeda (belum ada buku, pencarian tidak cocok, filter tidak cocok, gagal memuat) masing-masing menawarkan aksi pemulihan sendiri.
+- **Copy antarmuka**: Kata "saringan" diganti "filter" di seluruh UI. Tombol tidak lagi Title Case, kalimat terpotong di modal Quick Add diperbaiki, dan kata "dashboard" yang sebelumnya dicampur sebagai kapital dan huruf kecil diseragamkan.
+- **Notifikasi**: Judul diseragamkan menjadi "ISBN Telah Terbit" di Telegram dan ntfy, tanpa huruf kapital penuh dan tanpa emoji di headline.
+- **README ditulis ulang**: Klaim yang tidak sesuai kode diperbaiki, yaitu klaim penjadwal melewati Sabtu-Minggu (fitur ini sudah dihapus di v1.1.0), referensi tab dan tombol yang sudah tidak ada, serta versi Node.js.
+
+### Fixed
+- **Tombol Edit mati total**: `openEditModal` membandingkan `book.id === id`, padahal `id` dari inline `onclick` selalu string dan `book.id` dari JSON selalu number. Ketidaksamaan tidak pernah cocok dan fungsi keluar senyap lewat `if (!book) return`, sehingga klik Edit di baris mana pun tidak melakukan apa-apa tanpa error. Diperbaiki dengan konversi `String()` di kedua sisi. Bug ini lolos dari pembacaan penuh file dan baru ketahuan saat klik nyata di browser.
+- **Overlay dialog transparan**: `.overlay` dibuat opaque agar kontras tidak bergantung pada isi halaman di belakangnya.
+- **Aturan `[hidden]` kalah oleh `display`**: Enam elemen yang di-toggle lewat JS tetap terlihat. Ditambah `[hidden] { display: none !important }` karena aturan UA kalah oleh specificity `display`.
+- **Tanggal meluber di kartu mobile**: `.cell-stack` dan batasan `min-width` mencegah tanggal dan sel pengarang/penerbit melebar di layar sempit.
+- **Fokus outline hilang**: Kontrol dengan `outline:none` tidak lagi dibiarkan tanpa indikator fokus.
+
+### Removed
+- **Folder `anti-slop/`**: Catatan audit lokal agent dikeluarkan dari repository. Dulu ikut ter-track lewat commit `7595a98`, sekarang hanya diabaikan lewat `.gitignore`.
 
 ## [1.2.8] - 2026-08-28
 
