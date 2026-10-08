@@ -1,7 +1,7 @@
 # Blueprint — isbn-notify
 
-- **Version:** v1.2.8
-- **Last Updated:** 2026-08-28
+- **Version:** v1.2.9
+- **Last Updated:** 2026-10-08
 - **Tech Stack:** Node.js, Hono, JSON Database (books.json), TypeScript
 
 ---
@@ -152,7 +152,18 @@ Aplikasi ini menggunakan Single Page App (SPA) dashboard yang dilindungi oleh **
 
 ---
 
-## 7. Responsive Mobile Layout (Web UI & UX)
+## 7. Tracking List Controls (v1.2.9+)
+
+Daftar Pelacakan punya tiga kontrol di header panel, ditambah ringkasan hasil di bawah tabel:
+
+- **Pengurutan**: `<select id="sortOrder">` dengan pilihan `newest` (terbaru dulu, default) dan `oldest` (terlama dulu). Nilai disimpan di `localStorage` key `isbn_notify_sort`. Karena `GET /books` mengembalikan urutan penyisipan, pengurutan dilakukan eksplisit di sisi klien lewat perbandingan string `created_at` (ISO-8601 terurut benar sebagai string, tanpa objek `Date` sehingga bebas masalah zona waktu). Record tanpa `created_at` turun ke bawah di kedua arah, dan `created_at` yang sama dipecah dengan `id` tertinggi lebih dulu.
+- **Pencarian**: `onSearchInput()` menunda render 250ms (debounce) supaya tabel tidak dirender ulang tiap ketikan. Pencarian mencocokkan judul, penerbit, dan pengarang, case-insensitive.
+- **Filter status**: `<select id="statusFilter">` dengan `all`, `PENDING`, `COMPLETED`. Mengubah filter mengembalikan halaman ke 1.
+- **Ringkasan hasil**: `#listSummary` hanya tampil ketika pencarian atau filter sedang mempersempit daftar. Menampilkan `Menampilkan X dari Y buku` plus tombol "Hapus filter" yang memanggil `resetAllFilters()` untuk mengosongkan pencarian, mengembalikan filter ke `all`, dan mengembalikan halaman ke 1. Baris ini disembunyikan saat total 0 karena empty state sudah membawa aksi pemulihannya sendiri.
+
+Empat kondisi kosong dibedakan karena empat penyebabnya berbeda: daftar kosong (offering "Daftarkan buku pertama"), pencarian tidak cocok (offering "Kosongkan pencarian"), filter tidak cocok (offering "Tampilkan semua status"), dan gagal memuat (offering "Coba lagi").
+
+## 8. Responsive Mobile Layout (Web UI & UX)
 
 Dashboard Web UI dirancang secara responsif dan dioptimalkan secara khusus untuk perangkat mobile/seluler:
 - **Priority Stack Order**: Pada lebar viewport <= 1024px, tata letak grid dashboard (`.dashboard-grid`) otomatis diubah susunannya secara bertumpuk dengan prioritas: metrik status (Stats Panel) di bagian paling atas, diikuti oleh modul rata-rata waktu terbit (Analysis Panel), formulir registrasi buku baru (Register Panel), dan daftar pelacakan (Tracking List) di bagian paling bawah. Footer dengan attribusi GitHub repository ditampilkan di akhir halaman.
