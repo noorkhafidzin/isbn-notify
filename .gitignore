@@ -34,7 +34,8 @@ test_success.js
 # Claude Code local config and per-machine permissions
 .claude/
 
-# Local tooling scratch space (SQLite state, verification harnesses)
+# Agent-local audit records and scratch space (SQLite state, verification harnesses)
+anti-slop/
 .freebuff/
 
 # Browser-automation screenshots written by the Playwright MCP server
