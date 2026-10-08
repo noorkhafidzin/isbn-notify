@@ -14,7 +14,7 @@ function escapeHtml(str: string | null): string {
 import { Book, Env } from './types.js';
 
 /**
- * Builds a professional, copy-paste-ready notification message body.
+ * Builds the notification message body, formatted to paste into a client.
  * Uses the tracked title (not the official title from the ISBN web).
  */
 function buildNotificationMessage(book: Book, isbn: string): string {
@@ -39,7 +39,7 @@ export async function sendTelegramNotification(
 ): Promise<boolean> {
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   
-  const text = `📖 <b>ISBN TELAH TERBIT!</b> 📖\n\n` +
+  const text = `<b>ISBN Telah Terbit</b>\n\n` +
     `<b>No. ISBN:</b> <code>${escapeHtml(isbn)}</code>\n` +
     `<b>Judul Buku:</b> ${escapeHtml(book.title)}\n` +
     `<b>Pengarang:</b> ${escapeHtml(book.author) || '-'}\n` +
@@ -85,7 +85,7 @@ export async function sendNtfyNotification(
 
   try {
     const headers: Record<string, string> = {
-      'Title': 'ISBN Telah Terbit!',
+      'Title': 'ISBN Telah Terbit',
       'Priority': 'high',
       'Tags': 'book,tada,bell',
     };

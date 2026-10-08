@@ -40,16 +40,16 @@ export const renderUI = () => `<!DOCTYPE html>
         </svg>
         <span class="brand-name">ISBN Notify</span>
       </div>
-      <h1 id="loginTitle" class="section-title" style="margin-bottom:0.25rem">Dashboard Terkunci</h1>
-      <p class="hint" style="margin-bottom:1.25rem">Masukkan password akses untuk mengelola daftar pelacakan ISBN Anda.</p>
+      <h1 id="loginTitle" class="section-title" style="margin-bottom:0.25rem">Dashboard terkunci</h1>
+      <p class="hint" style="margin-bottom:1.25rem">Masukkan password untuk membuka daftar pelacakan ISBN Anda.</p>
       <form onsubmit="handleLogin(event)">
         <div class="form-group">
-          <label for="loginPassword">Password Akses</label>
+          <label for="loginPassword">Password</label>
           <input type="password" id="loginPassword" class="form-control" autocomplete="current-password" required>
         </div>
         <button type="submit" class="btn btn-primary btn-block" id="btnLoginSubmit">
           <i data-lucide="lock-open" aria-hidden="true"></i>
-          Buka Dashboard
+          Buka dashboard
         </button>
       </form>
     </div>
@@ -196,7 +196,7 @@ export const renderUI = () => `<!DOCTYPE html>
 
           <button type="submit" class="btn btn-primary btn-block" id="btnSubmit" style="margin-top:1rem">
             <i data-lucide="save" aria-hidden="true"></i>
-            Mulai Lacak
+            Mulai lacak
           </button>
         </form>
       </section>
@@ -208,11 +208,18 @@ export const renderUI = () => `<!DOCTYPE html>
             Daftar Pelacakan
           </h2>
           <div class="search-bar">
-            <label for="searchQuery" class="visually-hidden">Cari judul atau penerbit</label>
-            <input type="search" id="searchQuery" class="form-control" placeholder="Cari judul atau penerbit" oninput="renderBooksTable()">
+            <label for="searchQuery" class="visually-hidden">Cari judul, penerbit, atau pengarang</label>
+            <input type="search" id="searchQuery" class="form-control" placeholder="Cari judul, penerbit, atau pengarang" oninput="onSearchInput()">
           </div>
           <div>
-            <label for="statusFilter" class="visually-hidden">Saring menurut status</label>
+            <label for="sortOrder" class="visually-hidden">Urutkan daftar buku</label>
+            <select id="sortOrder" class="form-control filter-select" onchange="setSortOrder(this.value)">
+              <option value="newest">Terbaru dulu</option>
+              <option value="oldest">Terlama dulu</option>
+            </select>
+          </div>
+          <div>
+            <label for="statusFilter" class="visually-hidden">Filter menurut status</label>
             <select id="statusFilter" class="form-control filter-select" onchange="filterByStatus(this.value)">
               <option value="all">Semua status</option>
               <option value="PENDING">Diajukan</option>
@@ -240,6 +247,15 @@ export const renderUI = () => `<!DOCTYPE html>
             </thead>
             <tbody id="booksListBody"></tbody>
           </table>
+        </div>
+
+        <!-- Only shown while a filter or search is narrowing the list. An
+             unfiltered "showing 15 of 15" is noise, not information. -->
+        <div class="panel-meta" id="listSummary" hidden>
+          <span id="listSummaryText"></span>
+          <button type="button" class="link-btn" id="btnResetFilters" onclick="resetAllFilters()">
+            Hapus filter
+          </button>
         </div>
 
         <div class="pagination" id="paginationControls" hidden>
@@ -314,7 +330,7 @@ export const renderUI = () => `<!DOCTYPE html>
             Penjadwal Latar Belakang
           </h2>
           <p class="hint" style="margin-bottom:1.25rem">
-            Server memeriksa ISBN baru di Perpusnas otomatis pada jadwal yang Anda tentukan, lalu mengirim notifikasi saat nomor ISBN terbit.
+            Jadwal ini berlaku setiap hari. Saat nomor ISBN terbit, notifikasi langsung dikirim ke kanal yang Anda daftarkan.
           </p>
 
           <div class="form-group">
@@ -330,7 +346,7 @@ export const renderUI = () => `<!DOCTYPE html>
             <div id="scheduleList" class="form-group" style="margin-bottom:0.75rem" role="group" aria-labelledby="scheduleLabel"></div>
             <button type="button" class="btn btn-secondary btn-block" onclick="addScheduleEntry()">
               <i data-lucide="plus" aria-hidden="true"></i>
-              Tambah Waktu
+              Tambah waktu
             </button>
             <div id="schedulerWarning" class="notice notice-warning" hidden>
               <i data-lucide="alert-triangle" aria-hidden="true"></i>
@@ -341,7 +357,7 @@ export const renderUI = () => `<!DOCTYPE html>
           <div class="btn-row" style="margin-top:1.5rem;justify-content:flex-start">
             <button type="submit" class="btn btn-primary" form="settingsNotifForm">
               <i data-lucide="save" aria-hidden="true"></i>
-              Simpan Konfigurasi
+              Simpan konfigurasi
             </button>
           </div>
         </section>
@@ -361,7 +377,7 @@ export const renderUI = () => `<!DOCTYPE html>
         Tempel dari Perpusnas
       </h2>
       <p class="hint" style="margin-bottom:1rem">
-        Salin tabel permohonan ISBN dari halaman Perpusnas, lalu tempel di bawah. Kolom yang bisa Anda ubah sebelum menambahkan.
+        Salin tabel permohonan ISBN dari halaman Perpusnas, lalu tempel di bawah. Semua kolom masih bisa Anda ubah sebelum ditambahkan.
       </p>
       <label for="quickAddInput" class="visually-hidden">Data tabel permohonan ISBN</label>
       <textarea id="quickAddInput" class="form-control" rows="7" style="font-family:var(--font-mono);font-size:0.8125rem"></textarea>
@@ -457,7 +473,7 @@ export const renderUI = () => `<!DOCTYPE html>
 
         <div class="btn-row" style="margin-top:1.25rem">
           <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Batal</button>
-          <button type="submit" class="btn btn-primary" id="btnSaveEditSubmit">Simpan Perubahan</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveEditSubmit">Simpan perubahan</button>
         </div>
       </form>
     </div>

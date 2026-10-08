@@ -3,6 +3,12 @@ let currentStatusFilter = 'all';
 let currentPage = 1;
 let pageSize = 10;
 
+// 'newest' | 'oldest'. Newest first is the default because this is a
+// working queue: the book you registered ten minutes ago is the one you
+// came back to look at.
+let sortDirection = 'newest';
+let searchDebounceTimer = null;
+
 // The three states R-27 requires, kept explicit so the table never has to
 // guess whether "no rows" means loading, empty, or broken.
 let listState = 'loading'; // 'loading' | 'ready' | 'error'
@@ -31,6 +37,21 @@ function formatDate(d) {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+// Renders a stored date the way an Indonesian reader expects to see it:
+// "17 Jun 2026". Returns null rather than a placeholder so the caller can
+// say something true about a missing date instead of printing "-".
+function formatDateID(value) {
+  if (!value) return null;
+  // A bare YYYY-MM-DD is parsed as UTC midnight, which lands on the previous
+  // day for anyone west of Greenwich. Pin it to local time first.
+  const raw = String(value).trim();
+  const d = new Date(raw.length === 10 ? raw + 'T00:00:00' : raw);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('id-ID', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
 }
 
 function el(id) {
@@ -704,12 +725,28 @@ function renderBooksTable() {
 
   let filtered = booksData.filter(b =>
     (b.title && b.title.toLowerCase().includes(search)) ||
-    (b.publisher && b.publisher.toLowerCase().includes(search))
+    (b.publisher && b.publisher.toLowerCase().includes(search)) ||
+    (b.author && b.author.toLowerCase().includes(search))
   );
 
   if (currentStatusFilter !== 'all') {
     filtered = filtered.filter(b => b.status === currentStatusFilter);
   }
+
+  // The API returns insertion order, so "newest first" has to be an explicit
+  // decision rather than an accident of when the file was last written.
+  // ISO-8601 strings sort correctly with a plain string compare, so no Date
+  // objects and no timezone surprises. Records missing created_at sink to the
+  // bottom in both directions.
+  const direction = sortDirection === 'oldest' ? 1 : -1;
+  filtered.sort((a, b) => {
+    const at = a.created_at || '';
+    const bt = b.created_at || '';
+    if (at === bt) return (b.id || 0) - (a.id || 0); // tie-break on the higher id
+    if (at === '') return 1;
+    if (bt === '') return -1;
+    return (at < bt ? -1 : 1) * direction;
+  });
 
   const totalItems = filtered.length;
 
@@ -730,11 +767,14 @@ function renderBooksTable() {
       title = `Tidak ada buku berstatus ${label.toLowerCase()}`;
       text = booksData.length === 0
         ? 'Belum ada buku dilacak.'
-        : `Semua ${booksData.length} buku yang dilacak tidak berstatus ${label.toLowerCase()}. Ubah saringan untuk melihat status lain.`;
+        : `Semua ${booksData.length} buku yang dilacak tidak berstatus ${label.toLowerCase()}. Ubah filter untuk melihat status lain.`;
       action = '<button type="button" class="btn btn-secondary" onclick="filterByStatus(\'all\')">Tampilkan semua status</button>';
     }
     body.innerHTML = `<tr><td colspan="6">${renderState('empty', { title, text, action })}</td></tr>`;
     controls.hidden = true;
+    // The empty states carry their own recovery action, so the summary row
+    // would just repeat it. Hide it rather than stack two of the same thing.
+    renderListSummary(0, booksData.length);
     icons();
     return;
   }
@@ -748,8 +788,17 @@ function renderBooksTable() {
   body.innerHTML = paged.map((book, idx) => {
     const settled = book.status === 'COMPLETED';
     const statusLabel = STATUS_LABEL[book.status] || book.status;
-    const dateInfo = `Diajukan ${book.submission_date || '-'}`
-      + (settled && book.isbn_published_date ? `, terbit ${book.isbn_published_date}` : '');
+
+    // Say something true about a missing date instead of printing "-", which
+    // reads as a rendering fault rather than as absent data.
+    const submitted = formatDateID(book.submission_date);
+    const published = formatDateID(book.isbn_published_date);
+    const dateParts = [];
+    if (submitted) dateParts.push(`Diajukan ${submitted}`);
+    if (settled && published) dateParts.push(`terbit ${published}`);
+    const dateInfo = dateParts.length
+      ? dateParts.join(', ')
+      : 'Tanggal pengajuan belum dicatat';
 
     // Every interpolated value is escaped. isbn and id come from the scraped
     // Perpusnas response and are not data this app controls.
@@ -765,9 +814,11 @@ function renderBooksTable() {
         <td class="cell-index" data-label="No.">${startIdx + idx + 1}</td>
         <td data-label="Judul"><div class="cell-title">${safeTitle}</div></td>
         <td data-label="Pengarang dan penerbit">
-          <div class="cell-meta">${escapeHtml(book.author || 'Pengarang tidak dicatat')}</div>
-          <div class="cell-sub">${escapeHtml(book.publisher || 'Penerbit tidak dicatat')}</div>
-          <div class="cell-dates">${escapeHtml(dateInfo)}</div>
+          <div class="cell-stack">
+            <div class="cell-meta">${escapeHtml(book.author || 'Pengarang tidak dicatat')}</div>
+            <div class="cell-sub">${escapeHtml(book.publisher || 'Penerbit tidak dicatat')}</div>
+            <div class="cell-dates">${escapeHtml(dateInfo)}</div>
+          </div>
         </td>
         <td data-label="Status">
           <span class="badge ${settled ? 'badge-settled' : 'badge-pending'}">${escapeHtml(statusLabel)}</span>
@@ -788,12 +839,56 @@ function renderBooksTable() {
 
   icons();
   renderPagination(totalItems, totalPages);
+  renderListSummary(totalItems, booksData.length);
 }
 
 function clearSearch() {
   el('searchQuery').value = '';
   renderBooksTable();
   el('searchQuery').focus();
+}
+
+// Re-rendering the whole tbody on every keystroke makes typing feel sticky once
+// the list is long. Settle for a quarter second after the last key instead.
+function onSearchInput() {
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => {
+    currentPage = 1;
+    renderBooksTable();
+  }, 250);
+}
+
+function setSortOrder(value) {
+  sortDirection = value === 'oldest' ? 'oldest' : 'newest';
+  try { localStorage.setItem('isbn_notify_sort', sortDirection); } catch (e) {}
+  currentPage = 1;
+  renderBooksTable();
+}
+
+// Escapes both the search box and the status filter, since either one alone can
+// leave the user staring at an empty table with no obvious way back.
+function resetAllFilters() {
+  clearTimeout(searchDebounceTimer);
+  el('searchQuery').value = '';
+  currentStatusFilter = 'all';
+  el('statusFilter').value = 'all';
+  currentPage = 1;
+  renderBooksTable();
+  el('searchQuery').focus();
+}
+
+// Shown only while something is actually narrowing the list.
+function renderListSummary(shown, total) {
+  const row = el('listSummary');
+  if (!row) return;
+  const filtering = !!el('searchQuery').value.trim() || currentStatusFilter !== 'all';
+  if (!filtering || total === 0) {
+    row.hidden = true;
+    return;
+  }
+  el('listSummaryText').textContent =
+    `Menampilkan ${shown} dari ${total} buku`;
+  row.hidden = false;
 }
 
 function renderPagination(total, totalPages) {
@@ -1174,6 +1269,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const storedTheme = localStorage.getItem('isbn_notify_theme');
   applyTheme(storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : 'light');
+
+  // Restore the saved sort before the first render, and keep the visible
+  // control in sync so the dropdown never disagrees with the list.
+  const storedSort = localStorage.getItem('isbn_notify_sort');
+  sortDirection = storedSort === 'oldest' ? 'oldest' : 'newest';
+  const sortSelect = el('sortOrder');
+  if (sortSelect) sortSelect.value = sortDirection;
 
   tryAutoLogin();
 });

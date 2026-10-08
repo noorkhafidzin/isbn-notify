@@ -568,6 +568,42 @@ textarea.form-control { resize: vertical; }
   margin-bottom: 1rem;
 }
 
+/* Sits directly under the header, aligned to the panel's left edge. Slightly
+   quieter than the section title because it is context, not a heading. */
+.panel-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin: -0.5rem 0 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+}
+
+/* An inline text action, not a button. It undoes a filter, so it should not
+   carry the weight or the chrome of a real control. */
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  min-height: 0;
+}
+
+.link-btn:hover { color: var(--accent-hover); }
+
+/* The underline already marks this as actionable, so the ring would be
+   redundant noise. Keep it visible on keyboard focus, which is not. */
+.link-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .panel-title {
   display: flex;
   align-items: center;
@@ -946,9 +982,15 @@ main:focus, main:focus-visible { outline: none; }
     text-align: right;
   }
 
+  /* The label is allowed to shrink. Locking it at max-content (the previous
+     flex-shrink: 0) means a long label like "Pengarang dan penerbit" refuses to
+     give ground, and every value beside it gets squeezed until the cell spills
+     past the card and forces a horizontal scrollbar. Letting both sides shrink
+     lets the row reflow instead. */
   td::before {
     content: attr(data-label);
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--ink-muted);
@@ -961,6 +1003,19 @@ main:focus, main:focus-visible { outline: none; }
 
   td[data-label='Aksi'] { margin-top: 0.5rem; padding-top: 0.625rem; border-top: 1px solid var(--border); }
   td[data-label='Aksi'] .row-actions { justify-content: flex-end; }
+
+  /* On desktop these three lines are ordinary block content and the column
+     wrapper is invisible. On mobile the cell becomes a flex row with a label
+     on the left; without this the three value divs compete as siblings for the
+     same few pixels and each one wraps to three lines. Stacking them gives the
+     label one sibling to lay out against. */
+  .cell-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+    text-align: right;
+  }
 
   .cell-dates { text-align: right; }
 

@@ -36,3 +36,6 @@ test_success.js
 
 # Local tooling scratch space (SQLite state, verification harnesses)
 .freebuff/
+
+# Browser-automation screenshots written by the Playwright MCP server
+.playwright-mcp/
